@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Binance Futures Testnet Trading Bot — place MARKET and LIMIT futures orders on the Binance testnet." />
+  <title>Testnet Trading Bot</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="app-wrapper">
+
+  <!-- ── Header ─────────────────────────────────────────────────── -->
+  <header class="app-header">
+    <div class="header-left">
+      <span class="header-logo">Trading Bot</span>
+      <span class="badge-testnet">Testnet</span>
+    </div>
+    <div class="header-status">
+      <div id="status-dot" class="status-dot"></div>
+      <span id="status-text">Connecting…</span>
+    </div>
+  </header>
+
+  <!-- ── Main grid ──────────────────────────────────────────────── -->
+  <main class="main-grid">
+
+    <!-- ── Order form ─────────────────────────────────────────── -->
+    <section class="panel" aria-label="New order">
+      <div class="panel-header">
+        <span class="panel-title">New Order</span>
+      </div>
+      <div class="panel-body">
+
+        <!-- Side toggle -->
+        <div class="form-group">
+          <span class="form-label">Side</span>
+          <div class="side-toggle">
+            <button id="btn-buy"  class="side-btn active-buy"  type="button" aria-pressed="true">Buy / Long</button>
+            <button id="btn-sell" class="side-btn"              type="button" aria-pressed="false">Sell / Short</button>
+          </div>
+        </div>
+
+        <!-- Symbol -->
+        <div class="form-group">
+          <label class="form-label" for="f-symbol">Symbol</label>
+          <input id="f-symbol" class="form-control" type="text"
+                 value="BTCUSDT" placeholder="e.g. BTCUSDT"
+                 autocomplete="off" spellcheck="false"
+                 aria-describedby="err-symbol" />
+          <div id="err-symbol" class="field-error" role="alert"></div>
+        </div>
+
+        <!-- Order type -->
+        <div class="form-group">
+          <label class="form-label" for="f-order-type">Order Type</label>
+          <select id="f-order-type" class="form-control">
+            <option value="MARKET">Market — execute at best price</option>
+            <option value="LIMIT">Limit — execute at specified price</option>
+          </select>
+        </div>
+
+        <!-- Quantity -->
+        <div class="form-group">
+          <label class="form-label" for="f-qty">Quantity</label>
+          <input id="f-qty" class="form-control" type="number"
+                 value="0.002" min="0" step="any"
+                 placeholder="0.002"
+                 aria-describedby="err-qty" />
+          <div id="err-qty" class="field-error" role="alert"></div>
+        </div>
+
+        <!-- Limit price (shown only for LIMIT) -->
+        <div id="f-price-group" class="form-group hidden">
+          <label class="form-label" for="f-price">Limit Price (USDT)</label>
+          <input id="f-price" class="form-control" type="number"
+                 min="0" step="any" placeholder="e.g. 95000"
+                 aria-describedby="err-price" />
+          <div id="err-price" class="field-error" role="alert"></div>
+        </div>
+
+        <!-- Order summary -->
+        <div id="order-summary" class="order-summary" aria-live="polite">
+          <div class="summary-row">
+            <span class="summary-key">Side</span>
+            <span id="sum-side" class="summary-val buy">BUY</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-key">Symbol</span>
+            <span id="sum-symbol" class="summary-val">—</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-key">Type</span>
+            <span id="sum-type" class="summary-val">—</span>
+          </div>
+          <div class="summary-row">
+            <span class="summary-key">Qty</span>
+            <span id="sum-qty" class="summary-val">—</span>
+          </div>
+          <div id="sum-price-row" class="summary-row hidden">
+            <span class="summary-key">Price</span>
+            <span id="sum-price" class="summary-val">—</span>
+          </div>
+        </div>
+
+        <!-- Result banner -->
+        <div id="result-banner" class="result-banner" role="status" aria-live="polite"></div>
+
+        <!-- Submit -->
+        <button id="btn-submit" class="btn-submit buy-mode" type="button">
+          Buy / Long
+        </button>
+
+      </div><!-- /panel-body -->
+    </section><!-- /order form -->
+
+    <!-- ── Orders table ───────────────────────────────────────── -->
+    <section class="panel orders-panel" aria-label="Recent orders">
+      <div class="panel-header">
+        <span class="panel-title">Recent Orders</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Symbol</th>
+              <th>Side</th>
+              <th>Type</th>
+              <th>Exec Qty</th>
+              <th>Avg Price</th>
+              <th>Status</th>
+              <th>Order ID</th>
+            </tr>
+          </thead>
+          <tbody id="orders-body">
+            <tr>
+              <td colspan="8" class="table-empty">No orders yet. Place your first order.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+  </main><!-- /main-grid -->
+
+</div><!-- /app-wrapper -->
+
+<!-- ── Confirmation modal ────────────────────────────────────────── -->
+<div id="confirm-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <div class="modal">
+    <div id="modal-title" class="modal-title">Confirm Order</div>
+    <div class="modal-detail">
+      <div class="modal-row">
+        <span class="modal-key">Side</span>
+        <span id="m-side" class="modal-val">—</span>
+      </div>
+      <div class="modal-row">
+        <span class="modal-key">Symbol</span>
+        <span id="m-symbol" class="modal-val">—</span>
+      </div>
+      <div class="modal-row">
+        <span class="modal-key">Type</span>
+        <span id="m-type" class="modal-val">—</span>
+      </div>
+      <div class="modal-row">
+        <span class="modal-key">Quantity</span>
+        <span id="m-qty" class="modal-val">—</span>
+      </div>
+      <div id="m-price-row" class="modal-row hidden">
+        <span class="modal-key">Limit Price</span>
+        <span id="m-price" class="modal-val">—</span>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button id="m-cancel"  class="btn-cancel"  type="button">Cancel</button>
+      <button id="m-confirm" class="btn-confirm buy" type="button">Place Order</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
