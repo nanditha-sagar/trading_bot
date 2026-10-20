@@ -1,227 +1,297 @@
-# Binance Trading Bot (Futures Testnet & Paper Trading)
+# Futures Trading Terminal
 
-## 📌 Overview
+A Python-based trading terminal for paper trading and Binance Futures Testnet execution. The project combines a Flask backend, a MySQL-backed user system, and a browser-based trading UI inspired by Groww / Angel One styling.
 
-A Python trading bot and modern web trading terminal supporting two distinct execution modes:
+## Overview
 
-1. **📝 Paper Trading (Simulated):** Works with **zero Binance balance and without API credentials**. Simulates MARKET and LIMIT orders, virtual USDT balance (default 10,000 USDT), position tracking, margin requirements, and real-time realized & unrealized P&L calculated against live public ticker prices.
-2. **📡 Binance Testnet:** Direct integration with Binance Futures Testnet (USDT-M) using the official `binance-futures-connector` library. Requires API credentials in `.env`.
+This application provides three main workflows:
 
-Both modes are accessible through a **Groww / Angel One inspired Web Trading Terminal** and an interactive **CLI tool**.
+1. Paper trading for simulated futures orders with no API keys required.
+2. Binance Futures Testnet trading for authenticated users with `.env` credentials.
+3. A user account system with registration, login, session-based access, and per-user trade history.
 
----
+The frontend is served from the `frontend/` directory, while the backend logic lives in `server.py`, `db.py`, and the `bot/` package.
 
-## 🚀 Key Features
+## Features
 
-- **Dual Modes (Paper Trading & Testnet):** Complete separation between paper simulation and real testnet execution.
-- **Zero-Key Paper Trading:** Practice trading strategies immediately without Binance API keys or testnet balance.
-- **Configurable Virtual Balance:** Default starting balance of 10,000 USDT, configurable via `PAPER_STARTING_BALANCE`.
-- **Live Candlestick Charting:** Real-time HTML5 Canvas candlestick chart with multiple intervals (`1m`, `5m`, `15m`, `1h`, `4h`), crosshairs, moving averages, and volume indicators.
-- **WebSocket Price Streaming:** Live Binance public WebSocket ticker streams with real-time price updates and 24h market stats (High, Low, Volume, Change).
-- **Portfolio & Margin Summary:** Real-time visibility into Virtual Balance, Total Equity, Available Margin, Realized P&L, and live Unrealized P&L.
-- **Position & P&L Simulation:** Accurately tracks LONG and SHORT positions, position flips, and computes realized/unrealized P&L based on linear USDT-M futures formulas.
-- **Safety Confirmation Modal:** Built-in order review modal with estimated order values before execution.
-- **CLI with Interactive Mode:** Guided step-by-step CLI order entry with prompt mode or direct terminal flags.
-- **Automated Test Suite:** Comprehensive pytest suite with 33 unit and integration tests covering paper engine, validators, testnet client, and server API.
-- **Structured Audit Logging:** Every simulated and testnet trade is timestamped and recorded in `bot.log`.
+- User registration and login using a MySQL-backed `users` table
+- Session-based authentication with Flask cookies
+- Per-user paper trading accounts and isolated in-memory positions
+- Paper order simulation with virtual balance, P&L tracking, and account reset
+- Binance Futures Testnet order placement using `binance-futures-connector`
+- Trade history persistence for authenticated testnet users
+- Real-time price lookups and 24h market info via Binance endpoints
+- Candlestick charting and market dashboard served in the browser
+- CLI order entry for either paper or testnet mode
 
----
+## Tech Stack
 
-## 🛠 Setup
+- Python 3.10+
+- Flask
+- MySQL Connector for Python
+- `python-dotenv`
+- Binance Futures connector library
+- Vanilla HTML, CSS, and JavaScript frontend
+- pytest for automated tests
 
-### 1. Prerequisites & Environment
+## Repository Structure
 
-Make sure you have Python 3.10+ installed. Create and activate a virtual environment:
+```text
+trading_bot/
+├── bot/
+│   ├── __init__.py
+│   ├── client.py             # Binance Futures Testnet client
+│   ├── logging_config.py     # Application logging setup
+│   ├── orders.py             # Testnet order placement and persistence
+│   ├── paper.py              # Per-user paper trading engine
+│   └── validators.py         # Shared order validation
+├── frontend/
+│   ├── app.js                # Dashboard behavior and API integration
+│   ├── index.html            # Trading dashboard
+│   ├── login.html            # Login page
+│   ├── register.html         # Registration page
+│   └── style.css             # Shared styles
+├── tests/
+│   ├── conftest.py
+│   ├── test_paper.py
+│   ├── test_server.py
+│   ├── test_testnet.py
+│   └── test_validators.py
+├── .env.example
+├── .gitignore
+├── cli.py                    # Command-line trading interface
+├── db.py                     # MySQL connection, users, and trade history
+├── README.md
+├── requirements.txt
+├── server.py                 # Flask app and REST API
+└── test_db_save.py
+```
 
-**Windows (PowerShell):**
+> The repository also contains a local `venv/` directory. Virtual environments are normally created locally and should not be committed to source control.
+
+## Requirements
+
+Before running the app, make sure you have:
+
+- Python 3.10 or newer
+- MySQL server running locally or on a reachable host
+- A Binance Futures Testnet account and API keys, only for testnet mode
+
+## Environment Configuration
+
+Copy `.env.example` to `.env` and update the values:
+
+```dotenv
+BINANCE_API_KEY=your_testnet_api_key_here
+BINANCE_API_SECRET=your_testnet_api_secret_here
+
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=your_mysql_password
+DB_NAME=order_bot
+
+FLASK_SECRET_KEY=replace_with_a_random_secret
+
+# Optional paper-trading balance
+PAPER_STARTING_BALANCE=10000000.0
+```
+
+Notes:
+
+- `BINANCE_API_KEY` and `BINANCE_API_SECRET` are required only for testnet order placement.
+- Paper trading does not require Binance credentials.
+- `FLASK_SECRET_KEY` is required by `server.py` for session management.
+- The code reads `PAPER_STARTING_BALANCE` from the environment. If it is not set, the current code default is `10000000.0` USDT.
+
+## Database Setup
+
+Create the database if it does not already exist:
+
+```sql
+CREATE DATABASE order_bot;
+```
+
+When the Flask server starts, `server.py` calls `init_db()`. This creates or updates the following tables:
+
+- `users` — usernames, email addresses, salted password hashes, and timestamps
+- `trade_history` — accepted Binance Testnet orders associated with users
+
+Paper orders are held in per-user in-memory engines and are not written to the MySQL trade-history table.
+
+## Local Setup
+
+1. Create and activate a virtual environment:
+
+```bash
+python -m venv venv
+source venv/bin/activate
+```
+
+On Windows PowerShell:
+
 ```powershell
 python -m venv venv
 .\venv\Scripts\Activate.ps1
 ```
 
-**macOS / Linux:**
-```bash
-python3 -m venv venv
-source venv/bin/activate
-```
-
-### 2. Install Dependencies
+2. Install dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Configure API Keys (Only needed for Testnet Mode)
+3. Create `.env` from `.env.example` and configure MySQL and Flask settings.
 
-> [!NOTE]
-> For **Paper Trading mode**, **NO API KEYS ARE REQUIRED**. You can skip this step and start paper trading immediately!
-
-For **Testnet mode**, create a `.env` file in the project root:
-
-```ini
-BINANCE_API_KEY=your_testnet_api_key
-BINANCE_API_SECRET=your_testnet_api_secret
-
-# Optional: customize paper trading starting balance (default: 10000.0)
-PAPER_STARTING_BALANCE=10000.0
-```
-
-Get your Testnet API keys from: [Binance Futures Testnet](https://testnet.binancefuture.com) (or https://demo.binance.com) → Account → API Management.
-
----
-
-## ▶️ How to Run
-
-### Method 1 — Web Trading Terminal (Recommended)
-
-Start the local Flask server:
+4. Start the Flask server:
 
 ```bash
 python server.py
 ```
 
-Then open **[http://localhost:5000](http://localhost:5000)** in your browser.
+5. Open the terminal in a browser:
 
-#### Highlights of the Web UI:
-- **Mode Switcher:** Toggle between **📝 Paper Trading** (zero risk, simulated) and **📡 Testnet** (live testnet API) via tabs in the header.
-- **Interactive Candlestick Chart:** Toggle timeframes (`1m`, `5m`, `15m`, `1h`, `4h`) and search any USDT pair (e.g., `BTCUSDT`, `ETHUSDT`, `SOLUSDT`).
-- **Portfolio Metrics Bar:** Monitor your Virtual Balance, Total Equity, Available Margin, and live Realized/Unrealized P&L.
-- **One-Click Account Reset:** Reset virtual balance and positions back to starting values anytime.
-- **Order Panel & Confirmation Modal:** Select BUY/LONG or SELL/SHORT, MARKET or LIMIT, specify quantity and price, review estimated margin and cost in the confirmation modal before submission.
-- **Order & Position History:** View real-time simulated and testnet orders, execution prices, timestamps, and status tags.
+```text
+http://localhost:5000
+```
 
----
+## Web Application
 
-### Method 2 — CLI (Paper Trading Mode — No API Keys Needed)
+The dashboard supports:
 
-Execute simulated paper orders directly from your terminal using the `--paper` flag:
+- Paper and Testnet mode switching
+- User sign-in and registration
+- Symbol selection and Binance market data
+- Candlestick charts with `1m`, `5m`, `15m`, `1h`, and `4h` intervals
+- BUY/LONG and SELL/SHORT orders
+- MARKET and LIMIT orders
+- Order confirmation before submission
+- Open positions, order history, and trade history views
+- Virtual balance, equity, realized P&L, and unrealized P&L
+- Paper-account reset
 
-**Market Order (Simulated):**
+The dashboard, login page, and registration page are served by Flask from `frontend/`.
+
+## Running the CLI
+
+The CLI supports both paper and testnet workflows.
+
+Paper mode — no Binance API keys required:
+
 ```bash
 python cli.py --paper --symbol BTCUSDT --side BUY --type MARKET --quantity 0.002
 ```
 
-**Limit Order (Simulated):**
+Paper LIMIT order:
+
 ```bash
 python cli.py --paper --symbol BTCUSDT --side SELL --type LIMIT --quantity 0.002 --price 85000
 ```
 
-**Interactive Guided Mode:**
-Run `python cli.py` without arguments and select option `[2] PAPER`:
+Testnet mode — requires Binance credentials in `.env`:
 
-```text
-=======================================================
-   🤖  Binance Futures Trading Bot — PAPER TRADING
-   📝  Execution: SIMULATED (No real funds / no API keys)
-   💰  Virtual Balance: 10,000.00 USDT
-=======================================================
-
-  📌 Trading Mode
-     [1] TESTNET — Binance Futures Testnet (requires API keys in .env)
-     [2] PAPER   — Simulated trading (virtual 10,000 USDT, zero API keys)
-  Select: 2
-```
-
----
-
-### Method 3 — CLI (Testnet Mode — Requires `.env` API Keys)
-
-**Market Order:**
 ```bash
 python cli.py --symbol BTCUSDT --side BUY --type MARKET --quantity 0.002
 ```
 
-**Limit Order:**
+Interactive mode:
+
 ```bash
-python cli.py --symbol BTCUSDT --side SELL --type LIMIT --quantity 0.002 --price 85000
+python cli.py
 ```
 
----
+The CLI validates the symbol, side, order type, quantity, and limit price, then asks for confirmation before placing the order.
 
-## 📡 Backend API Endpoints
+## API Endpoints
 
-The Flask server (`server.py`) exposes REST endpoints used by the Web Terminal:
+### Public endpoints
 
-| Method | Endpoint | Query / Body Params | Description |
-|---|---|---|---|
-| `GET` | `/` | — | Serves the single-page web terminal UI |
-| `GET` | `/api/status` | — | Backend health, mode availability, key status |
-| `GET` | `/api/price` | `symbol` (e.g. `BTCUSDT`) | Real-time mark/market price |
-| `GET` | `/api/market-info` | `symbol` (e.g. `BTCUSDT`) | 24h ticker price, high, low, volume, percent change |
-| `GET` | `/api/klines` | `symbol`, `interval` | Historical OHLCV candlestick data for chart rendering |
-| `GET` | `/api/orders` | `mode=paper` or `testnet` | Order history for the active mode |
-| `POST` | `/api/order` | JSON: `symbol`, `side`, `type`, `quantity`, `price`, `mode` | Place a simulated paper order or testnet order |
-| `GET` | `/api/paper/account` | — | Virtual balance, equity, open positions, P&L metrics |
-| `POST` | `/api/paper/reset` | — | Reset paper trading account to initial balance |
+- `GET /` — serves the trading dashboard
+- `GET /login` — serves the login page
+- `GET /register` — serves the registration page
+- `GET /api/status` — reports service status, key availability, supported modes, and configured paper balance
+- `GET /api/price?symbol=BTCUSDT` — returns a current or fallback price
+- `GET /api/market-info?symbol=BTCUSDT` — returns 24-hour market statistics
+- `GET /api/klines?symbol=BTCUSDT&interval=15m&limit=60` — returns candlestick data
+- `POST /api/auth/register` — creates a user account
+- `POST /api/auth/login` — authenticates a user
+- `GET /api/auth/me` — returns the current session user
+- `POST /api/logout` — clears the current session
 
----
+### Authenticated endpoints
 
-## 🧪 Running Tests
+- `GET /api/orders?mode=paper` — returns the current user's paper orders
+- `GET /api/orders?mode=testnet` — returns the current user's persisted testnet orders
+- `GET /api/paper/account` — returns paper balance, equity, P&L, and positions
+- `POST /api/paper/reset` — resets the current user's paper account
+- `POST /api/order` — places a paper or testnet order
 
-A test suite of 33 unit and integration tests is included:
+Example order request:
+
+```json
+{
+  "mode": "paper",
+  "symbol": "BTCUSDT",
+  "side": "BUY",
+  "order_type": "MARKET",
+  "quantity": 0.002
+}
+```
+
+For a LIMIT order, include a positive `price` value.
+
+## Paper Trading Behavior
+
+The paper engine in `bot/paper.py` simulates futures-style order execution without placing orders on Binance.
+
+It:
+
+- Maintains a virtual USDT balance
+- Keeps separate paper state for each authenticated user
+- Supports MARKET and LIMIT orders
+- Fetches public Binance prices and falls back to cached prices when necessary
+- Tracks LONG and SHORT positions
+- Calculates realized and unrealized P&L
+- Supports position increases, reductions, and flips
+- Enforces a virtual balance and maximum notional check
+- Stores the most recent paper orders in memory
+
+Paper LIMIT orders are marked `FILLED` when the simulated limit price crosses the current market price; otherwise they remain `NEW`.
+
+## Testnet Trading Behavior
+
+In Testnet mode, the application:
+
+1. Loads `BINANCE_API_KEY` and `BINANCE_API_SECRET` from `.env`.
+2. Creates a Binance `UMFutures` client pointed at `https://testnet.binancefuture.com`.
+3. Validates and submits the order through the Binance Futures API.
+4. Saves accepted order details to MySQL under the authenticated user.
+
+Do not use production Binance credentials with this project. Testnet mode is intended for testing against Binance Futures Testnet.
+
+## Testing
+
+Run the test suite with:
 
 ```bash
-# Using active venv:
 pytest -v tests/
-
-# Or via Windows venv directly:
-.\venv\Scripts\pytest -v tests/
 ```
 
-### Test Coverage Breakdown:
-- `tests/test_paper.py` (10 tests): Virtual balance initialization, market & limit order execution, position updates, realized P&L, unrealized P&L, position flipping, margin sufficiency checks, and account reset.
-- `tests/test_validators.py` (8 tests): Input validation for symbols, sides (`BUY`/`SELL`), order types (`MARKET`/`LIMIT`), positive quantities, and limit prices.
-- `tests/test_testnet.py` (4 tests): Environment variable configuration, client initialization, payload construction, and error handling.
-- `tests/test_server.py` (11 tests): Flask endpoints, candlestick klines, 24h ticker info, price routes, status checks, paper trading execution, and strict mode separation.
+The tests cover paper-trading behavior, validators, Flask endpoints, and testnet client/order logic.
 
----
+## Logging
 
-## 📁 Project Structure
+The application configures logging through `bot/logging_config.py`. Trading requests, paper executions, Binance errors, and persistence problems are logged for troubleshooting. Check the generated `bot.log` file when diagnosing runtime issues.
 
-```text
-trading_bot/
-├── bot/
-│   ├── __init__.py          # Module exports (client, orders, paper_engine)
-│   ├── client.py            # Binance UMFutures testnet client wrapper
-│   ├── orders.py            # Testnet order placement logic
-│   ├── paper.py             # Paper Trading simulation engine (P&L, balance, fills)
-│   ├── validators.py        # Shared order input validation
-│   └── logging_config.py    # Multi-handler logging setup
-├── frontend/
-│   ├── index.html           # Single-page trading terminal UI
-│   ├── style.css            # Clean, modern trading terminal stylesheet
-│   └── app.js               # Frontend controller (WebSockets, charts, order flow)
-├── tests/
-│   ├── conftest.py          # Pytest path and environment configuration
-│   ├── test_paper.py        # Paper trading engine unit tests
-│   ├── test_server.py       # API adapter integration tests
-│   ├── test_testnet.py      # Testnet client & order placement tests
-│   └── test_validators.py   # Input validation tests
-├── cli.py                   # CLI entry point (supports --paper, testnet & interactive)
-├── server.py                # Flask server adapter for Web UI & REST endpoints
-├── .env.example             # Example environment variables template
-├── bot.log                  # Request and trade audit log
-├── README.md                # Project documentation
-└── requirements.txt         # Project dependencies
-```
+## Important Notes
 
----
+- This project is for development and educational use; it is not financial advice or a production exchange platform.
+- Paper trading is simulated and does not use real funds.
+- Testnet orders are sent to Binance Futures Testnet, not the production exchange.
+- Market data depends on network access to Binance public endpoints.
+- The current server initializes the database during import/startup, so valid MySQL configuration is needed before running `server.py`.
+- Passwords are stored using the project’s salted SHA-256 implementation. For production deployments, use a dedicated password-hashing algorithm such as Argon2id or bcrypt.
 
-## 📋 Audit Logs
+## License
 
-All trading activities—simulated paper trades and testnet API calls—are recorded in `bot.log`:
-
-```text
-2026-10-20 17:03:42 - INFO - [PAPER TRADING] Order executed: id=9000000001 BUY 0.002 BTCUSDT @ 81435.6, status=FILLED, PnL=0.00, virtual_bal=10000.00
-2026-10-20 17:08:12 - INFO - Order Request: BTCUSDT, BUY, MARKET, 0.002, None
-```
-
----
-
-## ⚠️ Notes & Assumptions
-
-- **Paper Trading:** Completely isolated in-memory simulation. Orders never touch the Binance exchange and require zero credentials or funds.
-- **Futures P&L Calculation:** Calculated according to standard linear USDT-M futures formulas:
-  - **Long:** `(exit_price - entry_price) * size`
-  - **Short:** `(entry_price - exit_price) * size`
-- **Testnet Access:** Requires valid testnet API credentials in `.env` and network access to `testnet.binancefuture.com`.
+This repository does not currently include a license file.
