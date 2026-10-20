@@ -1,8 +1,3 @@
-/* ================================================================
-   Indian Trading App Aesthetic (Groww & Angel One Inspired)
-   Light theme default · Clean typography · Generous whitespace
-   Subtle grey borders · Crisp green/red indicators · Mobile responsive
-   ================================================================ */
 
 *, *::before, *::after {
   box-sizing: border-box;
@@ -180,6 +175,100 @@ html, body {
 .status-dot.active { background: var(--green); }
 .status-dot.testnet { background: var(--amber); }
 .status-dot.error { background: var(--red); }
+
+/* ── User Nav & Auth Buttons ─────────────────────────────────── */
+.nav-user-area {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-signin-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  background: var(--green);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  transition: background-color 0.15s ease;
+}
+
+.btn-signin-link:hover {
+  background: #009663;
+}
+
+.user-profile-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f1f5f9;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.user-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--green);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* ── Logout Button ────────────────────────────────────────────── */
+.btn-logout {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #f8fafc;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-family: var(--font-main);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  line-height: 1;
+}
+
+.btn-logout:hover {
+  background: #fef2f2;
+  color: var(--red);
+  border-color: #fecaca;
+}
+
+.btn-logout:active {
+  transform: translateY(1px);
+}
+
+.btn-logout .logout-icon {
+  flex-shrink: 0;
+  transition: stroke 0.15s ease;
+}
+
+@media (max-width: 640px) {
+  .btn-logout span {
+    display: none;
+  }
+  .btn-logout {
+    padding: 6px 8px;
+  }
+  .nav-actions {
+    gap: 8px;
+  }
+}
 
 /* ── Portfolio Summary (Angel One & Groww Style Stats) ────────── */
 .portfolio-card {

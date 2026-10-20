@@ -1,49 +1,39 @@
-/* ================================================================
-   app.js — Indian Trading App Controller (Groww & Angel One Inspired)
-   Real Historical OHLCV Candles · Binance Public WebSocket Live Stream
-   Continuous Candle Updates without Full Rebuilds · Strict Real Data
-   ================================================================ */
-
 'use strict';
 
 const API = '';
-
-// ── Application State ────────────────────────────────────────────
 const state = {
-  mode: 'paper',          // 'paper' | 'testnet'
+  mode: 'paper',
   symbol: 'BTCUSDT',
   interval: '15m',
   side: 'BUY',
   orderType: 'MARKET',
-  marketPrice: null,      // Real live market price
+  marketPrice: null,
   priceChange: 0.0,
   priceChangePercent: 0.0,
   submitting: false,
-  chartData: [],          // Array of { time, open, high, low, close, volume }
-  activeTab: 'positions', // 'positions' | 'orders' | 'trades'
-  ws: null,               // Active WebSocket instance
+  chartData: [],         
+  activeTab: 'positions', 
+  ws: null,
   wsReconnectTimer: null,
 };
-
-// ── DOM References ───────────────────────────────────────────────
 const $ = id => document.getElementById(id);
 
 const dom = {
-  // Mode & Nav
+  btnLogout:         $('btn-logout'),
+  linkLogin:         $('link-login'),
+  userProfileBadge:  $('user-profile-badge'),
+  navUserAvatar:     $('nav-user-avatar'),
+  navUserName:       $('nav-user-name'),
   btnModePaper:      $('btn-mode-paper'),
   btnModeTestnet:    $('btn-mode-testnet'),
   navStatusDot:      $('nav-status-dot'),
   navStatusText:     $('nav-status-text'),
-
-  // Portfolio
   metricBalance:     $('metric-balance'),
   metricEquity:      $('metric-equity'),
   metricAvailMargin: $('metric-avail-margin'),
   metricUnrealized:  $('metric-unrealized-pnl'),
   metricRealized:    $('metric-realized-pnl'),
   btnResetPortfolio: $('btn-reset-portfolio'),
-
-  // Chart & Market Header
   inputSymbolSearch: $('input-symbol-search'),
   symbolPills:       document.querySelectorAll('.symbol-pill'),
   tfButtons:         document.querySelectorAll('.tf-btn'),
@@ -57,8 +47,6 @@ const dom = {
   chartViewport:     $('chart-viewport'),
   canvas:            $('candlestick-canvas'),
   chartLoader:       $('chart-loader'),
-
-  // Order Panel
   badgeOrderSim:     $('badge-order-sim'),
   tabBuy:            $('tab-buy'),
   tabSell:           $('tab-sell'),
@@ -75,8 +63,6 @@ const dom = {
   revMargin:         $('rev-margin'),
   btnSubmitOrder:    $('btn-submit-order'),
   orderResultToast:  $('order-result-toast'),
-
-  // Activities
   tabBtnPositions:   $('tab-btn-positions'),
   tabBtnOrders:      $('tab-btn-orders'),
   tabBtnTrades:      $('tab-btn-trades'),
@@ -89,8 +75,6 @@ const dom = {
   tbodyTrades:       $('tbody-trades'),
   countPositions:    $('count-positions'),
   countOrders:       $('count-orders'),
-
-  // Modal
   confirmModal:      $('confirm-modal'),
   modalTitle:        $('modal-title'),
   modalModeBadge:    $('modal-mode-badge'),
@@ -106,7 +90,6 @@ const dom = {
   modalBtnConfirm:   $('modal-btn-confirm'),
 };
 
-// ── 1. Mode Switching (Paper vs Testnet) ─────────────────────────
 dom.btnModePaper.addEventListener('click', () => setMode('paper'));
 dom.btnModeTestnet.addEventListener('click', () => setMode('testnet'));
 
@@ -144,7 +127,6 @@ function setMode(newMode) {
   loadOrders();
 }
 
-// ── 2. Symbol & Timeframe Switching ──────────────────────────────
 dom.symbolPills.forEach(pill => {
   pill.addEventListener('click', () => {
     dom.symbolPills.forEach(p => p.classList.remove('active'));
@@ -156,7 +138,6 @@ dom.symbolPills.forEach(pill => {
 dom.inputSymbolSearch.addEventListener('change', () => {
   const sym = dom.inputSymbolSearch.value.trim().toUpperCase();
   if (sym) {
-    // update pill active state if matches quick pills
     dom.symbolPills.forEach(p => {
       p.classList.toggle('active', p.dataset.symbol === sym);
     });
@@ -766,10 +747,21 @@ dom.btnResetPortfolio.addEventListener('click', async () => {
   }
 });
 
-// ── 9. Positions & Activity Tabs ─────────────────────────────────
-dom.tabBtnPositions.addEventListener('click', () => switchActivityTab('positions'));
-dom.tabBtnOrders.addEventListener('click',    () => switchActivityTab('orders'));
-dom.tabBtnTrades.addEventListener('click',    () => switchActivityTab('trades'));
+
+ // ── 9. Positions & Activity Tabs ────────────────────────────────
+
+dom.tabBtnPositions.addEventListener('click', () =>
+  switchActivityTab('positions')
+);
+
+dom.tabBtnOrders.addEventListener('click', () =>
+  switchActivityTab('orders')
+);
+
+dom.tabBtnTrades.addEventListener('click', () =>
+  switchActivityTab('trades')
+);
+
 dom.btnRefreshTables.addEventListener('click', () => {
   loadAccount();
   loadOrders();
@@ -777,107 +769,254 @@ dom.btnRefreshTables.addEventListener('click', () => {
 
 function switchActivityTab(tab) {
   state.activeTab = tab;
-  dom.tabBtnPositions.className = 'activity-tab' + (tab === 'positions' ? ' active' : '');
-  dom.tabBtnOrders.className    = 'activity-tab' + (tab === 'orders' ? ' active' : '');
-  dom.tabBtnTrades.className    = 'activity-tab' + (tab === 'trades' ? ' active' : '');
+
+  dom.tabBtnPositions.className =
+    'activity-tab' + (tab === 'positions' ? ' active' : '');
+
+  dom.tabBtnOrders.className =
+    'activity-tab' + (tab === 'orders' ? ' active' : '');
+
+  dom.tabBtnTrades.className =
+    'activity-tab' + (tab === 'trades' ? ' active' : '');
 
   dom.viewPositions.classList.toggle('hidden', tab !== 'positions');
-  dom.viewOrders.classList.toggle('hidden',    tab !== 'orders');
-  dom.viewTrades.classList.toggle('hidden',    tab !== 'trades');
+  dom.viewOrders.classList.toggle('hidden', tab !== 'orders');
+  dom.viewTrades.classList.toggle('hidden', tab !== 'trades');
 }
+
+
+// ── Render Open Positions ────────────────────────────────────────
 
 function renderPositions(positions) {
   dom.countPositions.textContent = String(positions.length);
 
-  if (positions.length === 0) {
-    dom.tbodyPositions.innerHTML = `<tr><td colspan="7" class="empty-state">No open positions. Place an order to build your portfolio.</td></tr>`;
+  if (!positions.length) {
+    dom.tbodyPositions.innerHTML = `
+      <tr>
+        <td colspan="7" class="empty-state">
+          No open positions. Place an order to build your portfolio.
+        </td>
+      </tr>`;
     return;
   }
 
   dom.tbodyPositions.innerHTML = positions.map(p => {
     const isLong = p.side === 'LONG';
     const upnl = Number(p.unrealized_pnl || 0);
-    const pnlClass = upnl >= 0 ? 'pnl-positive' : 'pnl-negative';
 
-    return `<tr>
-      <td class="td-symbol">${escHtml(p.symbol)}</td>
-      <td><span class="badge-side ${isLong ? 'buy' : 'sell'}">${escHtml(p.side)}</span></td>
-      <td>${escHtml(String(p.size))}</td>
-      <td>${formatMoney(p.entry_price)}</td>
-      <td>${formatMoney(p.mark_price)}</td>
-      <td>${formatMoney(p.notional)} USDT</td>
-      <td class="${pnlClass}">${upnl >= 0 ? '+' : ''}${formatMoney(upnl)} USDT</td>
-    </tr>`;
+    return `
+      <tr>
+        <td class="td-symbol">${escHtml(p.symbol)}</td>
+        <td>
+          <span class="badge-side ${isLong ? 'buy' : 'sell'}">
+            ${escHtml(p.side)}
+          </span>
+        </td>
+        <td>${escHtml(String(p.size))}</td>
+        <td>${formatMoney(p.entry_price)}</td>
+        <td>${formatMoney(p.mark_price)}</td>
+        <td>${formatMoney(p.notional)} USDT</td>
+        <td class="${upnl > 0 ? 'pnl-positive' : upnl < 0 ? 'pnl-negative' : ''}">
+          ${upnl > 0 ? '+' : ''}${formatMoney(upnl)} USDT
+        </td>
+      </tr>`;
   }).join('');
 }
 
+
+// ── Load Order History from Backend ──────────────────────────────
+
 async function loadOrders() {
+  dom.tbodyOrders.innerHTML = `
+    <tr>
+      <td colspan="9" class="empty-state">Loading order history...</td>
+    </tr>`;
+
   try {
-    const res = await fetch(`${API}/api/orders?mode=${encodeURIComponent(state.mode)}`);
-    if (res.ok) {
-      const data = await res.json();
-      const orders = data.orders || [];
-      renderOrdersAndTrades(orders);
+    const response = await fetch(
+      `${API}/api/orders?mode=${encodeURIComponent(state.mode)}`,
+      { cache: 'no-store' }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Unable to load order history.');
     }
-  } catch (err) {
-    dom.tbodyOrders.innerHTML = `<tr><td colspan="9" class="empty-state">Could not load orders.</td></tr>`;
+
+    const orders = Array.isArray(data.orders) ? data.orders : [];
+    renderOrdersAndTrades(orders);
+
+  } catch (error) {
+    console.error('Order history error:', error);
+
+    dom.tbodyOrders.innerHTML = `
+      <tr>
+        <td colspan="9" class="empty-state">
+          ${escHtml(error.message || 'Could not load order history.')}
+        </td>
+      </tr>`;
+
+    dom.tbodyTrades.innerHTML = `
+      <tr>
+        <td colspan="7" class="empty-state">
+          Trade history is unavailable.
+        </td>
+      </tr>`;
+
+    dom.countOrders.textContent = '0';
   }
 }
+
+
+// ── Normalize Order Fields ───────────────────────────────────────
 
 function renderOrdersAndTrades(orders) {
   dom.countOrders.textContent = String(orders.length);
 
-  // Render Order History
-  if (orders.length === 0) {
-    dom.tbodyOrders.innerHTML = `<tr><td colspan="9" class="empty-state">No orders placed yet in ${state.mode} mode.</td></tr>`;
-    dom.tbodyTrades.innerHTML = `<tr><td colspan="7" class="empty-state">No filled trades recorded yet.</td></tr>`;
+  if (!orders.length) {
+    dom.tbodyOrders.innerHTML = `
+      <tr>
+        <td colspan="9" class="empty-state">
+          No orders placed yet in ${escHtml(state.mode)} mode.
+        </td>
+      </tr>`;
+
+    dom.tbodyTrades.innerHTML = `
+      <tr>
+        <td colspan="7" class="empty-state">
+          No filled trades recorded yet.
+        </td>
+      </tr>`;
+
     return;
   }
 
-  dom.tbodyOrders.innerHTML = orders.map(o => {
-    const time = o.timestamp ? new Date(o.timestamp).toLocaleTimeString('en-US', { hour12: false }) : '—';
-    const isBuy = o.side === 'BUY';
-    const isSim = o.is_simulated || o.execution_type?.includes('SIMULATED');
-    const status = (o.status || 'FILLED').toUpperCase();
-    const statusClass = status === 'FILLED' ? 'filled' : status === 'NEW' ? 'new' : 'closed';
+  const normalized = orders.map(order => {
+    const status = String(
+      order.status ||
+      (state.mode === 'paper' ? 'FILLED' : 'UNKNOWN')
+    ).toUpperCase();
 
-    return `<tr>
-      <td>${escHtml(time)}</td>
-      <td>${escHtml(String(o.orderId || '—'))}</td>
-      <td class="td-symbol">${escHtml(o.symbol || '—')}</td>
-      <td><span class="badge-side ${isBuy ? 'buy' : 'sell'}">${escHtml(o.side || '—')}</span></td>
-      <td>${escHtml(o.order_type || o.type || 'MARKET')}</td>
-      <td>${escHtml(String(o.executedQty || o.quantity || '—'))}</td>
-      <td>${formatMoney(o.avgPrice || o.price || 0)}</td>
-      <td><span class="badge-status ${statusClass}">${escHtml(status)}</span></td>
-      <td><span class="badge-simulated-tag ${isSim ? '' : 'testnet'}">${isSim ? 'SIMULATED' : 'TESTNET'}</span></td>
-    </tr>`;
+    const avgPrice = Number(
+      order.avgPrice ?? order.avg_price ?? 0
+    );
+
+    const orderPrice = Number(order.price ?? 0);
+
+    return {
+      ...order,
+      _id: order.orderId ?? order.exchange_order_id ?? order.id ?? '—',
+      _time: order.timestamp ?? order.created_at ?? order.time ?? null,
+      _quantity: order.origQty ?? order.quantity ?? order.qty ?? '—',
+      _executed: Number(
+        order.executedQty ?? order.executed_quantity ?? 0
+      ),
+      _price: avgPrice > 0 ? avgPrice : orderPrice,
+      _type: order.order_type ?? order.type ?? 'MARKET',
+      _status: status
+    };
+  });
+
+  // Render Order History
+  dom.tbodyOrders.innerHTML = normalized.map(order => {
+    const time = order._time
+      ? new Date(order._time).toLocaleString()
+      : '—';
+
+    const isBuy = String(order.side).toUpperCase() === 'BUY';
+
+    const statusClass = order._status === 'FILLED'
+      ? 'filled'
+      : ['NEW', 'PARTIALLY_FILLED'].includes(order._status)
+        ? 'new'
+        : 'closed';
+
+    const priceText = order._price > 0
+      ? formatMoney(order._price)
+      : '—';
+
+    const execution = state.mode === 'paper'
+      ? 'SIMULATED'
+      : 'TESTNET';
+
+    return `
+      <tr>
+        <td>${escHtml(time)}</td>
+        <td>${escHtml(String(order._id))}</td>
+        <td class="td-symbol">${escHtml(order.symbol || '—')}</td>
+        <td>
+          <span class="badge-side ${isBuy ? 'buy' : 'sell'}">
+            ${escHtml(order.side || '—')}
+          </span>
+        </td>
+        <td>${escHtml(order._type)}</td>
+        <td>${escHtml(String(order._quantity))}</td>
+        <td>${priceText}</td>
+        <td>
+          <span class="badge-status ${statusClass}">
+            ${escHtml(order._status)}
+          </span>
+        </td>
+        <td>
+          <span class="badge-simulated-tag ${state.mode === 'testnet' ? 'testnet' : ''}">
+            ${execution}
+          </span>
+        </td>
+      </tr>`;
   }).join('');
 
-  // Render Trade History (filled executions)
-  const trades = orders.filter(o => (o.status || 'FILLED').toUpperCase() === 'FILLED');
-  if (trades.length === 0) {
-    dom.tbodyTrades.innerHTML = `<tr><td colspan="7" class="empty-state">No filled trades recorded yet.</td></tr>`;
+  // Trade History shows orders marked FILLED.
+  const trades = normalized.filter(
+    order => order._status === 'FILLED'
+  );
+
+  if (!trades.length) {
+    dom.tbodyTrades.innerHTML = `
+      <tr>
+        <td colspan="7" class="empty-state">
+          No filled trades recorded yet.
+        </td>
+      </tr>`;
     return;
   }
 
-  dom.tbodyTrades.innerHTML = trades.map(t => {
-    const time = t.timestamp ? new Date(t.timestamp).toLocaleTimeString('en-US', { hour12: false }) : '—';
-    const isBuy = t.side === 'BUY';
-    const isSim = t.is_simulated || t.execution_type?.includes('SIMULATED');
-    const rpnl = Number(t.realized_pnl || 0);
+  dom.tbodyTrades.innerHTML = trades.map(trade => {
+    const time = trade._time
+      ? new Date(trade._time).toLocaleString()
+      : '—';
 
-    return `<tr>
-      <td>${escHtml(time)}</td>
-      <td class="td-symbol">${escHtml(t.symbol || '—')}</td>
-      <td><span class="badge-side ${isBuy ? 'buy' : 'sell'}">${escHtml(t.side || '—')}</span></td>
-      <td>${escHtml(String(t.executedQty || t.quantity || '—'))}</td>
-      <td>${formatMoney(t.avgPrice || t.price || 0)} USDT</td>
-      <td class="${rpnl >= 0 ? 'pnl-positive' : 'pnl-negative'}">${rpnl !== 0 ? (rpnl > 0 ? '+' : '') + formatMoney(rpnl) + ' USDT' : '—'}</td>
-      <td><span class="badge-simulated-tag ${isSim ? '' : 'testnet'}">${isSim ? 'SIMULATED' : 'TESTNET'}</span></td>
-    </tr>`;
+    const isBuy = String(trade.side).toUpperCase() === 'BUY';
+
+    const executedQty = trade._executed > 0
+      ? trade._executed
+      : trade._quantity;
+
+    const fillPrice = trade._price > 0
+      ? `${formatMoney(trade._price)} USDT`
+      : '—';
+
+    return `
+      <tr>
+        <td>${escHtml(time)}</td>
+        <td class="td-symbol">${escHtml(trade.symbol || '—')}</td>
+        <td>
+          <span class="badge-side ${isBuy ? 'buy' : 'sell'}">
+            ${escHtml(trade.side || '—')}
+          </span>
+        </td>
+        <td>${escHtml(String(executedQty))}</td>
+        <td>${escHtml(fillPrice)}</td>
+        <td>—</td>
+        <td>
+          <span class="badge-simulated-tag ${state.mode === 'testnet' ? 'testnet' : ''}">
+            ${state.mode === 'testnet' ? 'TESTNET' : 'SIMULATED'}
+          </span>
+        </td>
+      </tr>`;
   }).join('');
 }
+
 
 // ── Helpers ──────────────────────────────────────────────────────
 function formatMoney(val) {
@@ -895,15 +1034,60 @@ function escHtml(s) {
     .replace(/'/g, '&#39;');
 }
 
-// ── Application Initialization ───────────────────────────────────
+async function checkAuthUser() {
+  try {
+    const res = await fetch(`${API}/api/auth/me`);
+    const data = await res.json();
+    if (data.authenticated && data.user) {
+      if (dom.linkLogin) dom.linkLogin.classList.add('hidden');
+      if (dom.userProfileBadge) dom.userProfileBadge.classList.remove('hidden');
+      if (dom.btnLogout) dom.btnLogout.classList.remove('hidden');
+      if (dom.navUserName) dom.navUserName.textContent = data.user.username;
+      if (dom.navUserAvatar) dom.navUserAvatar.textContent = data.user.username.charAt(0).toUpperCase();
+    } else {
+      if (dom.linkLogin) dom.linkLogin.classList.remove('hidden');
+      if (dom.userProfileBadge) dom.userProfileBadge.classList.add('hidden');
+      if (dom.btnLogout) dom.btnLogout.classList.add('hidden');
+    }
+  } catch (err) {
+    console.debug('Auth check skipped:', err);
+  }
+}
+
+async function handleLogout() {
+  if (!confirm('Are you sure you want to log out of the trading terminal?')) {
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/api/logout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const data = await res.json().catch(() => ({}));
+    sessionStorage.clear();
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('user_session');
+    window.location.href = data.redirect_url || '/login';
+  } catch (err) {
+    console.error('Logout error:', err);
+    sessionStorage.clear();
+    window.location.href = '/login';
+  }
+}
+
+if (dom.btnLogout) {
+  dom.btnLogout.addEventListener('click', handleLogout);
+}
+
 (function init() {
+  checkAuthUser();
   setMode('paper');
   fetchMarketInfo();
   loadHistoricalCandlesAndConnectStream();
   loadAccount();
   loadOrders();
 
-  // Periodic polling for 24h market stats & paper account P&L
   setInterval(() => {
     fetchMarketInfo();
     if (state.mode === 'paper') loadAccount();

@@ -1,77 +1,202 @@
-"""
-server.py — Flask HTTP adapter for the Binance Futures Trading Bot.
-
-Supports two distinct trading modes:
-  1. PAPER TRADING (SIMULATED):
-     Zero Binance balance and no API credentials required.
-     Simulates MARKET/LIMIT orders, virtual 10,000 USDT balance, positions, and P&L.
-     Orders NEVER touch Binance exchange or use real funds.
-
-  2. TESTNET MODE (BINANCE API):
-     Authenticates via BINANCE_API_KEY / BINANCE_API_SECRET in .env.
-     Sends signed order requests to testnet.binancefuture.com.
-
-Endpoints:
-  GET  /api/orders?mode=paper|testnet  — Fetch recent orders for active mode
-  POST /api/order                      — Place paper or testnet order
-  GET  /api/paper/account              — Get virtual balance, equity, positions, P&L
-  POST /api/paper/reset                — Reset virtual balance back to starting balance
-  GET  /api/price?symbol=BTCUSDT       — Live market/mark price (no auth required)
-  GET  /api/market-info?symbol=BTCUSDT — 24h ticker info (price, change, high, low, volume)
-  GET  /api/klines?symbol=BTCUSDT&interval=15m — Candlestick klines data
-  GET  /api/status                     — Server configuration and active features
-"""
-
 import os
 import logging
-from datetime import datetime, timezone
-import requests
-from flask import Flask, jsonify, request
-from flask_cors import CORS
+from flask import Flask, jsonify, request, session
 
+import requests
+from flask_cors import CORS
+from dotenv import load_dotenv
+
+from db import (
+    get_trade_history,
+    init_db,
+    register_user,
+    authenticate_user,
+    get_user_by_id,
+)
 from bot.client import get_client
 from bot.orders import place_order
 from bot.validators import validate_input
 from bot.logging_config import setup_logging
-from bot.paper import paper_engine
+from bot.paper import get_paper_engine
+from functools import wraps
+
+# Load environment variables from .env
+load_dotenv()
 
 # Logging
 setup_logging()
 logger = logging.getLogger(__name__)
 
-# App
+# Initialize database tables on server startup
+init_db()
+
+# Flask app
 app = Flask(__name__, static_folder="frontend", static_url_path="")
+app.secret_key = os.environ["FLASK_SECRET_KEY"]
 CORS(app)
 
-# In-memory history for Testnet orders (kept strictly separate from paper orders)
-_testnet_order_history: list[dict] = []
-MAX_HISTORY = 50
+def login_required(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        user_id = session.get("user_id")
+
+        if not user_id:
+            return jsonify({
+                "error": "Please log in to access this feature.",
+                "authenticated": False
+            }), 401
+
+        # Confirm the account still exists.
+        try:
+            user = get_user_by_id(user_id)
+        except Exception:
+            logger.exception("Failed to validate the current user")
+            return jsonify({"error": "Unable to verify your account."}), 500
+
+        if not user:
+            session.clear()
+            return jsonify({
+                "error": "Your session is invalid. Please log in again.",
+                "authenticated": False
+            }), 401
+
+        return func(*args, **kwargs)
+
+    return wrapper
 
 
+# ── Page Routes ──────────────────────────────────────────────────
 @app.route("/")
 def index():
-    """Serve the frontend single page app."""
+    """Serve the trading dashboard single-page application."""
     return app.send_static_file("index.html")
+
+
+@app.route("/login")
+def login_page():
+    """Serve the login web page."""
+    return app.send_static_file("login.html")
+
+
+@app.route("/register")
+@app.route("/signin")
+def register_page():
+    """Serve the register / sign-in web page."""
+    return app.send_static_file("register.html")
+
+
+# ── Authentication API Endpoints ─────────────────────────────────
+@app.route("/api/auth/register", methods=["POST"])
+def auth_register():
+    """Register a new user account."""
+    data = request.get_json(silent=True) or {}
+    username = str(data.get("username", "")).strip()
+    email = str(data.get("email", "")).strip()
+    password = str(data.get("password", "")).strip()
+
+    try:
+        user = register_user(username, email, password)
+        session["user_id"] = user["id"]
+        session["username"] = user["username"]
+        return jsonify({
+            "status": "success",
+            "message": "Account created successfully.",
+            "user": user,
+        }), 201
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+    except Exception as exc:
+        logger.exception("User registration failed")
+        return jsonify({"error": f"Registration failed: {exc}"}), 500
+
+
+@app.route("/api/auth/login", methods=["POST"])
+def auth_login():
+    """Authenticate existing user credentials."""
+    data = request.get_json(silent=True) or {}
+    identifier = str(data.get("identifier", "")).strip()
+    password = str(data.get("password", "")).strip()
+
+    if not identifier or not password:
+        return jsonify({"error": "Please provide your username/email and password."}), 400
+
+    try:
+        user = authenticate_user(identifier, password)
+        if not user:
+            return jsonify({"error": "Invalid username or password."}), 401
+
+        session.clear()
+        session["user_id"] = user["id"]
+        session["username"] = user["username"]
+        
+        return jsonify({
+            "status": "success",
+            "message": "Logged in successfully.",
+            "user": user,
+        }), 200
+    except Exception as exc:
+        logger.exception("User login error")
+        return jsonify({"error": f"Login failed: {exc}"}), 500
+
+
+@app.route("/api/auth/me", methods=["GET"])
+def auth_me():
+    """Return the currently logged-in user profile, if any."""
+    user_id = session.get("user_id")
+    if not user_id:
+        return jsonify({"authenticated": False, "user": None}), 200
+
+    try:
+        user = get_user_by_id(user_id)
+        if not user:
+            session.clear()
+            return jsonify({"authenticated": False, "user": None}), 200
+        return jsonify({
+            "authenticated": True,
+            "user": {
+                "id": user["id"],
+                "username": user["username"],
+                "email": user["email"]
+            }
+        }), 200
+    except Exception as exc:
+        logger.exception("Failed to fetch user profile")
+        return jsonify({"authenticated": False, "error": str(exc)}), 500
+
+
+@app.route("/api/logout", methods=["POST"])
+def logout():
+    """Clear session data and return status."""
+    session.clear()
+    return jsonify({
+        "status": "success",
+        "message": "Logged out successfully.",
+        "redirect_url": "/login"
+    })
 
 
 @app.route("/api/status", methods=["GET"])
 def get_status():
     """Return backend status and mode availability."""
-    has_keys = bool(os.getenv("BINANCE_API_KEY") and os.getenv("BINANCE_API_SECRET"))
+    has_keys = bool(
+        os.getenv("BINANCE_API_KEY") and os.getenv("BINANCE_API_SECRET")
+    )
     return jsonify({
         "status": "online",
         "has_testnet_keys": has_keys,
-        "paper_starting_balance": paper_engine.starting_balance,
+        "paper_starting_balance": float(
+    os.getenv("PAPER_STARTING_BALANCE", "10000000.0")
+),
         "supported_modes": ["paper", "testnet"],
     })
 
 
 @app.route("/api/price", methods=["GET"])
 def get_price():
-    """Get live market mark price for a symbol without authentication."""
+    """Get the current market price for a symbol."""
     symbol = request.args.get("symbol", "BTCUSDT").strip().upper()
     try:
-        price = paper_engine.get_market_price(symbol)
+        price = get_paper_engine(0).get_market_price(symbol)
         return jsonify({"symbol": symbol, "price": price})
     except Exception as exc:
         logger.warning("Price lookup error for %s: %s", symbol, exc)
@@ -80,8 +205,9 @@ def get_price():
 
 @app.route("/api/market-info", methods=["GET"])
 def get_market_info():
-    """Get 24hr statistics (change percentage, high, low, volume) without authentication."""
+    """Get 24-hour market statistics without authentication."""
     symbol = request.args.get("symbol", "BTCUSDT").strip().upper()
+
     try:
         res = requests.get(
             "https://fapi.binance.com/fapi/v1/ticker/24hr",
@@ -102,7 +228,7 @@ def get_market_info():
     except Exception as exc:
         logger.debug("Market info fetch failed from primary endpoint: %s", exc)
 
-    # Fallback to testnet or local price
+    # Fallback to Binance Futures Testnet.
     try:
         res = requests.get(
             "https://testnet.binancefuture.com/fapi/v1/ticker/24hr",
@@ -120,10 +246,14 @@ def get_market_info():
                 "lowPrice": float(data.get("lowPrice", 0)),
                 "volume": float(data.get("volume", 0)),
             })
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.debug("Testnet market info fetch failed: %s", exc)
 
-    curr_price = paper_engine.get_market_price(symbol)
+    try:
+        curr_price = get_paper_engine(0).get_market_price(symbol)
+    except Exception:
+        curr_price = 85000.0
+
     return jsonify({
         "symbol": symbol,
         "price": curr_price,
@@ -138,108 +268,119 @@ def get_market_info():
 
 @app.route("/api/klines", methods=["GET"])
 def get_klines():
-    """Get candlestick klines for chart visualization without authentication."""
+    """Get candlestick data for chart visualization."""
     symbol = request.args.get("symbol", "BTCUSDT").strip().upper()
     interval = request.args.get("interval", "15m").strip()
-    limit = int(request.args.get("limit", 60))
 
     try:
-        res = requests.get(
-            "https://fapi.binance.com/fapi/v1/klines",
-            params={"symbol": symbol, "interval": interval, "limit": limit},
-            timeout=4.0,
-        )
-        if res.ok:
-            raw = res.json()
-            candles = [
-                {
-                    "time": int(k[0]),
-                    "open": float(k[1]),
-                    "high": float(k[2]),
-                    "low": float(k[3]),
-                    "close": float(k[4]),
-                    "volume": float(k[5]),
-                }
-                for k in raw
-            ]
-            return jsonify({"symbol": symbol, "interval": interval, "candles": candles})
-    except Exception as exc:
-        logger.debug("Klines fetch failed: %s", exc)
+        limit = int(request.args.get("limit", 60))
+    except (TypeError, ValueError):
+        return jsonify({"error": "limit must be an integer."}), 400
 
-    # Fallback to testnet
-    try:
-        res = requests.get(
-            "https://testnet.binancefuture.com/fapi/v1/klines",
-            params={"symbol": symbol, "interval": interval, "limit": limit},
-            timeout=4.0,
-        )
-        if res.ok:
-            raw = res.json()
-            candles = [
-                {
-                    "time": int(k[0]),
-                    "open": float(k[1]),
-                    "high": float(k[2]),
-                    "low": float(k[3]),
-                    "close": float(k[4]),
-                    "volume": float(k[5]),
-                }
-                for k in raw
-            ]
-            return jsonify({"symbol": symbol, "interval": interval, "candles": candles})
-    except Exception:
-        pass
+    # Keep request size within a reasonable range for the exchange API.
+    limit = max(1, min(limit, 1500))
 
-    return jsonify({"symbol": symbol, "interval": interval, "candles": [], "error": "Unable to fetch live klines"}), 502
+    for base_url in (
+        "https://fapi.binance.com/fapi/v1/klines",
+        "https://testnet.binancefuture.com/fapi/v1/klines",
+    ):
+        try:
+            res = requests.get(
+                base_url,
+                params={"symbol": symbol, "interval": interval, "limit": limit},
+                timeout=4.0,
+            )
+            if res.ok:
+                raw = res.json()
+                candles = [
+                    {
+                        "time": int(k[0]),
+                        "open": float(k[1]),
+                        "high": float(k[2]),
+                        "low": float(k[3]),
+                        "close": float(k[4]),
+                        "volume": float(k[5]),
+                    }
+                    for k in raw
+                ]
+                return jsonify({
+                    "symbol": symbol,
+                    "interval": interval,
+                    "candles": candles,
+                })
+        except Exception as exc:
+            logger.debug("Klines fetch failed from %s: %s", base_url, exc)
+
+    return jsonify({
+        "symbol": symbol,
+        "interval": interval,
+        "candles": [],
+        "error": "Unable to fetch live klines",
+    }), 502
 
 
 @app.route("/api/orders", methods=["GET"])
+@login_required
 def get_orders():
-    """
-    Return recent orders for the requested mode.
-    Keeps paper and testnet order histories strictly separated.
-    """
+    """Return order history belonging to the logged-in user."""
+    user_id = session["user_id"]
     mode = request.args.get("mode", "paper").strip().lower()
+
     if mode == "testnet":
-        return jsonify({"orders": _testnet_order_history, "mode": "testnet"})
-    return jsonify({"orders": paper_engine.orders, "mode": "paper"})
+        try:
+            orders = get_trade_history(user_id=user_id, limit=50)
+            return jsonify({"orders": orders, "mode": "testnet"})
+        except Exception:
+            logger.exception("Failed to load user Testnet history")
+            return jsonify({"error": "Unable to load trading history."}), 500
+
+    if mode == "paper":
+        engine = get_paper_engine(session["user_id"])
+        return jsonify({
+            "orders": engine.orders,
+            "mode": "paper"
+        })
+    return jsonify({"error": "Invalid mode. Use paper or testnet."}), 400
 
 
 @app.route("/api/paper/account", methods=["GET"])
+@login_required
 def get_paper_account():
-    """Return the paper trading virtual account state (balance, equity, positions, P&L)."""
-    return jsonify(paper_engine.get_account())
+    engine = get_paper_engine(session["user_id"])
+    return jsonify(engine.get_account())
 
 
 @app.route("/api/paper/reset", methods=["POST"])
+@login_required
 def reset_paper_account():
-    """Reset the virtual paper account to its starting balance."""
-    account = paper_engine.reset_account()
-    return jsonify({"message": "Paper account reset successfully.", "account": account})
+    engine = get_paper_engine(session["user_id"])
+    account = engine.reset_account()
 
+    return jsonify({
+        "message": "Paper account reset successfully.",
+        "account": account
+    })
 
 @app.route("/api/order", methods=["POST"])
+@login_required
 def create_order():
-    """
-    Place an order in either PAPER or TESTNET mode.
+    """Place an order in PAPER or Binance Futures TESTNET mode."""
 
-    JSON payload:
-      {
-        "mode":       "paper" | "testnet", // default is "paper"
-        "symbol":     "BTCUSDT",
-        "side":       "BUY" | "SELL",
-        "order_type": "MARKET" | "LIMIT",
-        "quantity":   0.002,
-        "price":      95000.0 // required only for LIMIT
-      }
-    """
     data = request.get_json(silent=True)
-    if not data:
-        return jsonify({"error": "Request body must be JSON."}), 400
+
+    if not isinstance(data, dict):
+        return jsonify({
+            "error": "Request body must be a JSON object."
+        }), 400
+
+    user_id = session["user_id"]
 
     mode = str(data.get("mode", "paper")).strip().lower()
+
     if mode not in ("paper", "testnet"):
-        return jsonify({"error": f"Invalid mode '{mode}'. Must be 'paper' or 'testnet'."}), 400
+        return jsonify({
+            "error": "Invalid mode. Must be 'paper' or 'testnet'."
+        }), 400
 
     symbol = str(data.get("symbol", "")).strip().upper()
     side = str(data.get("side", "")).strip().upper()
@@ -248,77 +389,95 @@ def create_order():
     try:
         quantity = float(data.get("quantity", 0))
     except (TypeError, ValueError):
-        return jsonify({"error": "quantity must be a valid number."}), 400
+        return jsonify({
+            "error": "Quantity must be a valid number."
+        }), 400
 
     price_raw = data.get("price")
     price = None
+
     if price_raw not in (None, "", "null"):
         try:
             price = float(price_raw)
         except (TypeError, ValueError):
-            return jsonify({"error": "price must be a valid number."}), 400
+            return jsonify({
+                "error": "Price must be a valid number."
+            }), 400
 
-    # 1. Validation (shared validation rules)
     try:
         validate_input(symbol, side, order_type, quantity, price)
     except ValueError as exc:
-        logger.warning("Validation failed: %s", exc)
+        logger.warning("Order validation failed: %s", exc)
         return jsonify({"error": str(exc)}), 422
 
-    # 2. Branch execution strictly by mode
+    # PAPER TRADING — use this user's own engine.
     if mode == "paper":
-        # ── Paper Trading Mode (Simulated, zero API keys, no Binance calls) ──
         try:
-            order = paper_engine.place_order(symbol, side, order_type, quantity, price)
-            account = paper_engine.get_account()
+            engine = get_paper_engine(user_id)
+
+            order = engine.place_order(
+                symbol, side, order_type, quantity, price
+            )
+
+            account = engine.get_account()
+
             return jsonify({
                 "order": order,
                 "mode": "paper",
-                "account": account,
+                "account": account
             }), 201
+
         except ValueError as exc:
             return jsonify({"error": str(exc)}), 422
-        except Exception as exc:
-            logger.exception("Unexpected error in paper trading")
-            return jsonify({"error": f"Paper simulation error: {exc}"}), 500
 
-    else:
-        # ── Testnet Mode (Calls real Binance Futures Testnet API) ─────────────
-        try:
-            client = get_client()
-            order = place_order(client, symbol, side, order_type, quantity, price)
-        except EnvironmentError as exc:
-            logger.error("Configuration error in testnet: %s", exc)
+        except Exception:
+            logger.exception(
+                "Paper order failed for user_id=%s", user_id
+            )
             return jsonify({
-                "error": str(exc),
-                "tip": "Configure BINANCE_API_KEY and BINANCE_API_SECRET in .env, or switch to Paper Trading mode to trade with zero keys.",
+                "error": "An unexpected paper trading error occurred."
             }), 500
-        except RuntimeError as exc:
-            logger.error("Order failed on Binance testnet: %s", exc)
-            return jsonify({"error": str(exc)}), 502
-        except Exception as exc:
-            logger.exception("Unexpected error placing testnet order")
-            return jsonify({"error": f"Unexpected server error: {exc}"}), 500
 
-        # Record testnet order in testnet-only history
-        record = {
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-            "symbol": symbol,
-            "side": side,
-            "order_type": order_type,
-            "quantity": quantity,
-            "price": price,
-            "is_simulated": False,
-        }
-        record.update(order)
-        _testnet_order_history.insert(0, record)
-        if len(_testnet_order_history) > MAX_HISTORY:
-            _testnet_order_history.pop()
+    # BINANCE FUTURES TESTNET — associate the order with this user.
+    try:
+        client = get_client()
 
+        order = place_order(
+            client,
+            symbol,
+            side,
+            order_type,
+            quantity,
+            price,
+            user_id=user_id
+        )
+
+    except EnvironmentError as exc:
+        logger.error("Testnet configuration error: %s", exc)
         return jsonify({
-            "order": record,
-            "mode": "testnet",
-        }), 201
+            "error": str(exc),
+            "tip": (
+                "Configure BINANCE_API_KEY and BINANCE_API_SECRET "
+                "in your .env file, or switch to Paper Trading."
+            )
+        }), 500
+
+    except RuntimeError as exc:
+        logger.error("Testnet order error: %s", exc)
+        return jsonify({"error": str(exc)}), 502
+
+    except Exception:
+        logger.exception(
+            "Unexpected Testnet order error for user_id=%s", user_id
+        )
+        return jsonify({
+            "error": "An unexpected server error occurred."
+        }), 500
+
+    return jsonify({
+        "order": order,
+        "mode": "testnet"
+    }), 201
 
 
 if __name__ == "__main__":

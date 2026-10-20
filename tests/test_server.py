@@ -133,3 +133,44 @@ def test_testnet_mode_without_keys_returns_error(client, monkeypatch):
     data = res.get_json()
     assert "error" in data
     assert "tip" in data
+
+
+def test_logout_endpoint(client):
+    # Set a session value
+    with client.session_transaction() as sess:
+        sess["user_id"] = "trader_1"
+
+    # Call logout
+    res = client.post("/api/logout")
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data["status"] == "success"
+    assert data["redirect_url"] == "/login"
+
+    # Confirm session cleared
+    with client.session_transaction() as sess:
+        assert "user_id" not in sess
+
+
+def test_auth_pages_render(client):
+    res_login = client.get("/login")
+    assert res_login.status_code == 200
+    assert b"Welcome back" in res_login.data
+
+    res_register = client.get("/register")
+    assert res_register.status_code == 200
+    assert b"Create your account" in res_register.data
+
+
+def test_auth_me_unauthenticated(client):
+    res = client.get("/api/auth/me")
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data["authenticated"] is False
+
+
+def test_auth_login_missing_credentials(client):
+    res = client.post("/api/auth/login", json={})
+    assert res.status_code == 400
+    data = res.get_json()
+    assert "error" in data

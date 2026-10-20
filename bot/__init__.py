@@ -1,1 +1,1 @@
-from bot.paper import PaperTradingEngine, paper_engine
+from bot.paper import PaperTradingEngine, get_paper_engine

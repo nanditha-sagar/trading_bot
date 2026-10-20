@@ -292,5 +292,18 @@ class PaperTradingEngine:
         return self.get_account()
 
 
-# Global singleton engine instance
-paper_engine = PaperTradingEngine()
+# Separate in-memory paper trading engine for each user.
+_paper_engines = {}
+
+
+def get_paper_engine(user_id):
+    """Return the paper trading engine belonging to one user."""
+    if user_id is None:
+        raise ValueError("An authenticated user ID is required.")
+
+    user_id = int(user_id)
+
+    if user_id not in _paper_engines:
+        _paper_engines[user_id] = PaperTradingEngine()
+
+    return _paper_engines[user_id]

@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Create an account on the Futures Trading Terminal." />
+  <title>Create Account — Futures Trading Terminal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .auth-page {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #f8fafc;
+      padding: 24px 16px;
+    }
+    .auth-card {
+      background: #ffffff;
+      border: 1px solid var(--border-light, #e2e8f0);
+      border-radius: 12px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+      width: 100%;
+      max-width: 440px;
+      padding: 32px;
+    }
+    .auth-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 24px;
+      justify-content: center;
+    }
+    .auth-brand .brand-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--green, #00b074);
+      color: #ffffff;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      font-weight: 800;
+    }
+    .auth-brand span {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-primary, #0f172a);
+      letter-spacing: -0.3px;
+    }
+    .auth-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary, #0f172a);
+      margin-bottom: 6px;
+      text-align: center;
+    }
+    .auth-subtitle {
+      font-size: 13px;
+      color: var(--text-secondary, #64748b);
+      margin-bottom: 24px;
+      text-align: center;
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    .form-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-secondary, #475569);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .form-input {
+      width: 100%;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-family: var(--font-main, 'Inter', sans-serif);
+      border: 1px solid var(--border-light, #cbd5e1);
+      border-radius: 6px;
+      background: #ffffff;
+      color: var(--text-primary, #0f172a);
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .form-input:focus {
+      outline: none;
+      border-color: var(--green, #00b074);
+      box-shadow: 0 0 0 3px rgba(0, 176, 116, 0.12);
+    }
+    .password-hint {
+      font-size: 11px;
+      color: var(--text-muted, #94a3b8);
+      margin-top: 4px;
+    }
+    .btn-submit {
+      width: 100%;
+      padding: 12px;
+      background: var(--green, #00b074);
+      color: #ffffff;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.15s, transform 0.1s;
+      margin-top: 10px;
+    }
+    .btn-submit:hover {
+      background: #009663;
+    }
+    .btn-submit:active {
+      transform: translateY(1px);
+    }
+    .btn-submit:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .auth-footer {
+      margin-top: 24px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-secondary, #64748b);
+    }
+    .auth-footer a {
+      color: var(--green, #00b074);
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .auth-footer a:hover {
+      text-decoration: underline;
+    }
+    .alert-box {
+      display: none;
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      margin-bottom: 18px;
+    }
+    .alert-box.visible {
+      display: block;
+    }
+    .alert-box.error {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #ef4444;
+    }
+    .alert-box.success {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      color: #00b074;
+    }
+    .back-home {
+      margin-top: 18px;
+      text-align: center;
+      font-size: 12px;
+    }
+    .back-home a {
+      color: var(--text-muted, #94a3b8);
+      text-decoration: none;
+    }
+    .back-home a:hover {
+      color: var(--text-primary, #0f172a);
+    }
+  </style>
+</head>
+<body class="auth-page">
+
+  <div class="auth-card">
+    <div class="auth-brand">
+      <div class="brand-icon">F</div>
+      <span>Futures Trading</span>
+    </div>
+
+    <h1 class="auth-title">Create your account</h1>
+    <p class="auth-subtitle">Join the trading terminal to track orders and portfolios</p>
+
+    <div id="alert-box" class="alert-box"></div>
+
+    <form id="register-form">
+      <div class="form-group">
+        <label class="form-label" for="username">Username</label>
+        <input class="form-input" type="text" id="username" placeholder="Choose a username" required minlength="3" maxlength="30" autocomplete="username" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="email">Email address</label>
+        <input class="form-input" type="email" id="email" placeholder="name@example.com" required autocomplete="email" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="password">Password</label>
+        <input class="form-input" type="password" id="password" placeholder="At least 6 characters" required minlength="6" autocomplete="new-password" />
+        <div class="password-hint">Must be at least 6 characters long</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="confirm-password">Confirm Password</label>
+        <input class="form-input" type="password" id="confirm-password" placeholder="Confirm your password" required minlength="6" autocomplete="new-password" />
+      </div>
+
+      <button type="submit" id="btn-submit" class="btn-submit">Sign Up</button>
+    </form>
+
+    <div class="auth-footer">
+      Already have an account? <a href="/login">Sign In</a>
+    </div>
+
+    <div class="back-home">
+      <a href="/">← Return to Trading Terminal (Guest / Paper Mode)</a>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById('register-form');
+    const alertBox = document.getElementById('alert-box');
+    const submitBtn = document.getElementById('btn-submit');
+
+    function showAlert(msg, type = 'error') {
+      alertBox.textContent = msg;
+      alertBox.className = `alert-box visible ${type}`;
+    }
+
+    function hideAlert() {
+      alertBox.className = 'alert-box';
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideAlert();
+
+      const username = document.getElementById('username').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value.trim();
+      const confirmPassword = document.getElementById('confirm-password').value.trim();
+
+      if (!username || !email || !password) {
+        showAlert('Please fill in all required fields.');
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        showAlert('Passwords do not match.');
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Creating account…';
+
+      try {
+        const res = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, email, password }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || 'Registration failed.');
+        }
+
+        showAlert('Account created successfully! Redirecting to trading terminal…', 'success');
+        sessionStorage.setItem('authenticated_user', JSON.stringify(data.user));
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 800);
+      } catch (err) {
+        showAlert(err.message, 'error');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Sign Up';
+      }
+    });
+  </script>
+</body>
+</html>

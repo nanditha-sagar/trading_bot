@@ -4,3 +4,4 @@ binance-futures-connector
 flask
 flask-cors
 pytest
+mysql-connector-python
