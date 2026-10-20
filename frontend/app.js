@@ -1,358 +1,911 @@
 /* ================================================================
-   app.js — Binance Futures Testnet Trading Bot UI
-   Pure vanilla JS. No libraries, no build step.
+   app.js — Indian Trading App Controller (Groww & Angel One Inspired)
+   Real Historical OHLCV Candles · Binance Public WebSocket Live Stream
+   Continuous Candle Updates without Full Rebuilds · Strict Real Data
    ================================================================ */
 
 'use strict';
 
-// ── API base (same origin — Flask serves both) ───────────────────
 const API = '';
 
-// ── State ────────────────────────────────────────────────────────
+// ── Application State ────────────────────────────────────────────
 const state = {
+  mode: 'paper',          // 'paper' | 'testnet'
+  symbol: 'BTCUSDT',
+  interval: '15m',
   side: 'BUY',
+  orderType: 'MARKET',
+  marketPrice: null,      // Real live market price
+  priceChange: 0.0,
+  priceChangePercent: 0.0,
   submitting: false,
+  chartData: [],          // Array of { time, open, high, low, close, volume }
+  activeTab: 'positions', // 'positions' | 'orders' | 'trades'
+  ws: null,               // Active WebSocket instance
+  wsReconnectTimer: null,
 };
 
-// ── DOM refs ─────────────────────────────────────────────────────
+// ── DOM References ───────────────────────────────────────────────
 const $ = id => document.getElementById(id);
 
 const dom = {
-  statusDot:    $('status-dot'),
-  statusText:   $('status-text'),
-  // Form
-  fSymbol:      $('f-symbol'),
-  fOrderType:   $('f-order-type'),
-  fQty:         $('f-qty'),
-  fPrice:       $('f-price'),
-  fPriceGroup:  $('f-price-group'),
-  btnBuy:       $('btn-buy'),
-  btnSell:      $('btn-sell'),
-  btnSubmit:    $('btn-submit'),
-  // Errors
-  errSymbol:    $('err-symbol'),
-  errQty:       $('err-qty'),
-  errPrice:     $('err-price'),
-  // Summary
-  summary:      $('order-summary'),
-  sumSide:      $('sum-side'),
-  sumSymbol:    $('sum-symbol'),
-  sumType:      $('sum-type'),
-  sumQty:       $('sum-qty'),
-  sumPrice:     $('sum-price'),
-  sumPriceRow:  $('sum-price-row'),
-  // Result banner
-  resultBanner: $('result-banner'),
+  // Mode & Nav
+  btnModePaper:      $('btn-mode-paper'),
+  btnModeTestnet:    $('btn-mode-testnet'),
+  navStatusDot:      $('nav-status-dot'),
+  navStatusText:     $('nav-status-text'),
+
+  // Portfolio
+  metricBalance:     $('metric-balance'),
+  metricEquity:      $('metric-equity'),
+  metricAvailMargin: $('metric-avail-margin'),
+  metricUnrealized:  $('metric-unrealized-pnl'),
+  metricRealized:    $('metric-realized-pnl'),
+  btnResetPortfolio: $('btn-reset-portfolio'),
+
+  // Chart & Market Header
+  inputSymbolSearch: $('input-symbol-search'),
+  symbolPills:       document.querySelectorAll('.symbol-pill'),
+  tfButtons:         document.querySelectorAll('.tf-btn'),
+  chartPriceCurrent: $('chart-price-current'),
+  chartPriceChange:  $('chart-price-change'),
+  chart24hHigh:      $('chart-24h-high'),
+  chart24hLow:       $('chart-24h-low'),
+  chart24hVol:       $('chart-24h-vol'),
+  chartStreamDot:    $('chart-stream-dot'),
+  chartStreamStatus: $('chart-stream-status'),
+  chartViewport:     $('chart-viewport'),
+  canvas:            $('candlestick-canvas'),
+  chartLoader:       $('chart-loader'),
+
+  // Order Panel
+  badgeOrderSim:     $('badge-order-sim'),
+  tabBuy:            $('tab-buy'),
+  tabSell:           $('tab-sell'),
+  selectOrderType:   $('select-order-type'),
+  inputQty:          $('input-qty'),
+  groupLimitPrice:   $('group-limit-price'),
+  inputLimitPrice:   $('input-limit-price'),
+  btnUseMarketPrice: $('btn-use-market-price'),
+  errQtyMsg:         $('err-qty-msg'),
+  errPriceMsg:       $('err-price-msg'),
+  revSymbol:         $('rev-symbol'),
+  revType:           $('rev-type'),
+  revEstValue:       $('rev-est-value'),
+  revMargin:         $('rev-margin'),
+  btnSubmitOrder:    $('btn-submit-order'),
+  orderResultToast:  $('order-result-toast'),
+
+  // Activities
+  tabBtnPositions:   $('tab-btn-positions'),
+  tabBtnOrders:      $('tab-btn-orders'),
+  tabBtnTrades:      $('tab-btn-trades'),
+  btnRefreshTables:  $('btn-refresh-tables'),
+  viewPositions:     $('view-positions'),
+  viewOrders:        $('view-orders'),
+  viewTrades:        $('view-trades'),
+  tbodyPositions:    $('tbody-positions'),
+  tbodyOrders:       $('tbody-orders'),
+  tbodyTrades:       $('tbody-trades'),
+  countPositions:    $('count-positions'),
+  countOrders:       $('count-orders'),
+
   // Modal
-  modal:        $('confirm-modal'),
-  mSide:        $('m-side'),
-  mSymbol:      $('m-symbol'),
-  mType:        $('m-type'),
-  mQty:         $('m-qty'),
-  mPrice:       $('m-price'),
-  mPriceRow:    $('m-price-row'),
-  mCancel:      $('m-cancel'),
-  mConfirm:     $('m-confirm'),
-  // Orders table
-  ordersBody:   $('orders-body'),
+  confirmModal:      $('confirm-modal'),
+  modalTitle:        $('modal-title'),
+  modalModeBadge:    $('modal-mode-badge'),
+  modalProduct:      $('modal-product'),
+  modalSide:         $('modal-side'),
+  modalType:         $('modal-type'),
+  modalQty:          $('modal-qty'),
+  modalPriceRow:     $('modal-price-row'),
+  modalPrice:        $('modal-price'),
+  modalValue:        $('modal-value'),
+  modalExecType:     $('modal-exec-type'),
+  modalBtnCancel:    $('modal-btn-cancel'),
+  modalBtnConfirm:   $('modal-btn-confirm'),
 };
 
-// ── Side toggle ──────────────────────────────────────────────────
-dom.btnBuy.addEventListener('click', () => setSide('BUY'));
-dom.btnSell.addEventListener('click', () => setSide('SELL'));
+// ── 1. Mode Switching (Paper vs Testnet) ─────────────────────────
+dom.btnModePaper.addEventListener('click', () => setMode('paper'));
+dom.btnModeTestnet.addEventListener('click', () => setMode('testnet'));
 
-function setSide(side) {
-  state.side = side;
-  dom.btnBuy.className  = 'side-btn' + (side === 'BUY'  ? ' active-buy'  : '');
-  dom.btnSell.className = 'side-btn' + (side === 'SELL' ? ' active-sell' : '');
-  dom.btnSubmit.className = 'btn-submit ' + (side === 'BUY' ? 'buy-mode' : 'sell-mode');
-  dom.btnSubmit.textContent = side === 'BUY' ? 'Buy / Long' : 'Sell / Short';
-  updateSummary();
+function setMode(newMode) {
+  state.mode = newMode;
+  const isPaper = newMode === 'paper';
+
+  dom.btnModePaper.className = 'mode-btn' + (isPaper ? ' active-paper' : '');
+  dom.btnModePaper.setAttribute('aria-selected', isPaper ? 'true' : 'false');
+  dom.btnModeTestnet.className = 'mode-btn' + (!isPaper ? ' active-testnet' : '');
+  dom.btnModeTestnet.setAttribute('aria-selected', !isPaper ? 'true' : 'false');
+
+  if (isPaper) {
+    dom.badgeOrderSim.textContent = 'SIMULATED';
+    dom.badgeOrderSim.className = 'badge-simulated-tag';
+    dom.navStatusDot.className = 'status-dot active';
+    dom.navStatusText.textContent = 'Market Live (Paper Engine)';
+    dom.modalModeBadge.textContent = 'SIMULATED';
+    dom.modalModeBadge.className = 'badge-simulated-tag';
+    dom.modalExecType.textContent = 'Paper Simulation (Zero Risk)';
+    dom.modalExecType.style.color = 'var(--green)';
+  } else {
+    dom.badgeOrderSim.textContent = 'TESTNET';
+    dom.badgeOrderSim.className = 'badge-simulated-tag testnet';
+    dom.navStatusDot.className = 'status-dot testnet';
+    dom.navStatusText.textContent = 'Binance Testnet Connected';
+    dom.modalModeBadge.textContent = 'TESTNET';
+    dom.modalModeBadge.className = 'badge-simulated-tag testnet';
+    dom.modalExecType.textContent = 'Binance Futures Testnet API';
+    dom.modalExecType.style.color = 'var(--amber)';
+  }
+
+  updateSubmitButton();
+  loadAccount();
+  loadOrders();
 }
 
-// ── Order type toggle — show/hide limit price ────────────────────
-dom.fOrderType.addEventListener('change', () => {
-  const isLimit = dom.fOrderType.value === 'LIMIT';
-  dom.fPriceGroup.classList.toggle('hidden', !isLimit);
-  if (!isLimit) {
-    dom.fPrice.value = '';
-    clearFieldError(dom.fPrice, dom.errPrice);
-  }
-  updateSummary();
+// ── 2. Symbol & Timeframe Switching ──────────────────────────────
+dom.symbolPills.forEach(pill => {
+  pill.addEventListener('click', () => {
+    dom.symbolPills.forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+    setSymbol(pill.dataset.symbol);
+  });
 });
 
-// ── Live summary update ──────────────────────────────────────────
-[dom.fSymbol, dom.fQty, dom.fPrice, dom.fOrderType].forEach(el => {
-  el.addEventListener('input', updateSummary);
+dom.inputSymbolSearch.addEventListener('change', () => {
+  const sym = dom.inputSymbolSearch.value.trim().toUpperCase();
+  if (sym) {
+    // update pill active state if matches quick pills
+    dom.symbolPills.forEach(p => {
+      p.classList.toggle('active', p.dataset.symbol === sym);
+    });
+    setSymbol(sym);
+  }
 });
 
-function updateSummary() {
-  const symbol = dom.fSymbol.value.trim().toUpperCase();
-  const qty    = dom.fQty.value.trim();
-  const price  = dom.fPrice.value.trim();
-  const type   = dom.fOrderType.value;
+function setSymbol(sym) {
+  state.symbol = sym;
+  dom.inputSymbolSearch.value = sym;
+  dom.revSymbol.textContent = sym;
+  updateSubmitButton();
 
-  if (!symbol || !qty || parseFloat(qty) <= 0) {
-    dom.summary.classList.remove('visible');
-    return;
-  }
-  if (type === 'LIMIT' && (!price || parseFloat(price) <= 0)) {
-    dom.summary.classList.remove('visible');
-    return;
-  }
-
-  dom.summary.classList.add('visible');
-  dom.sumSide.textContent   = state.side;
-  dom.sumSide.className     = 'summary-val ' + state.side.toLowerCase();
-  dom.sumSymbol.textContent = symbol;
-  dom.sumType.textContent   = type;
-  dom.sumQty.textContent    = qty;
-
-  if (type === 'LIMIT' && price) {
-    dom.sumPriceRow.classList.remove('hidden');
-    dom.sumPrice.textContent = parseFloat(price).toLocaleString('en-US', { minimumFractionDigits: 2 }) + ' USDT';
-  } else {
-    dom.sumPriceRow.classList.add('hidden');
-  }
-
-  // Update submit button label
-  const sideLabel = state.side === 'BUY' ? 'Buy / Long' : 'Sell / Short';
-  dom.btnSubmit.textContent = `${sideLabel}  ${symbol}`;
+  // Reload historical candles and switch live stream
+  fetchMarketInfo();
+  loadHistoricalCandlesAndConnectStream();
 }
 
-// ── Validation ───────────────────────────────────────────────────
-function setFieldError(field, errEl, msg) {
-  field.classList.add('error-field');
-  errEl.textContent = msg;
-  errEl.classList.add('visible');
+dom.tfButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    dom.tfButtons.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.interval = btn.dataset.interval;
+
+    // Reload historical candles and switch live stream to selected interval
+    loadHistoricalCandlesAndConnectStream();
+  });
+});
+
+// ── 3. Market Info & 24hr Stats Fetching ──────────────────────────
+async function fetchMarketInfo() {
+  try {
+    const res = await fetch(`${API}/api/market-info?symbol=${encodeURIComponent(state.symbol)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.price) {
+        state.marketPrice = Number(data.price);
+        state.priceChange = Number(data.priceChange) || 0.0;
+        state.priceChangePercent = Number(data.priceChangePercent) || 0.0;
+
+        // Update Ticker UI
+        updatePriceDisplay(state.marketPrice, state.priceChange, state.priceChangePercent);
+
+        dom.chart24hHigh.textContent = formatMoney(data.highPrice);
+        dom.chart24hLow.textContent  = formatMoney(data.lowPrice);
+        dom.chart24hVol.textContent  = Number(data.volume).toLocaleString('en-US', { maximumFractionDigits: 0 });
+
+        updateOrderReview();
+      }
+    }
+  } catch (err) {
+    console.warn('Market info fetch failed', err);
+  }
 }
 
-function clearFieldError(field, errEl) {
-  field.classList.remove('error-field');
-  errEl.classList.remove('visible');
+function updatePriceDisplay(currentPrice, changeVal, changePct) {
+  dom.chartPriceCurrent.textContent = formatMoney(currentPrice) + ' USDT';
+  const isUp = changePct >= 0;
+  dom.chartPriceChange.className = 'price-change ' + (isUp ? 'up' : 'down');
+  dom.chartPriceChange.textContent = `${isUp ? '+' : ''}${changeVal.toFixed(2)} (${isUp ? '+' : ''}${changePct.toFixed(2)}%)`;
 }
 
-function validateForm() {
-  let valid = true;
+// ── 4. Historical Candles & WebSocket Live Stream ────────────────
+async function loadHistoricalCandlesAndConnectStream() {
+  // 1. Clean up old WebSocket connection before switching
+  cleanupWebSocket();
 
-  const symbol = dom.fSymbol.value.trim();
-  if (!symbol) {
-    setFieldError(dom.fSymbol, dom.errSymbol, 'Symbol is required (e.g. BTCUSDT)');
-    valid = false;
-  } else {
-    clearFieldError(dom.fSymbol, dom.errSymbol);
-  }
+  // 2. Fetch historical candles
+  dom.chartLoader.classList.add('visible');
+  updateStreamStatus('connecting');
 
-  const qty = parseFloat(dom.fQty.value);
-  if (!dom.fQty.value.trim() || isNaN(qty) || qty <= 0) {
-    setFieldError(dom.fQty, dom.errQty, 'Enter a positive quantity');
-    valid = false;
-  } else {
-    clearFieldError(dom.fQty, dom.errQty);
-  }
-
-  if (dom.fOrderType.value === 'LIMIT') {
-    const price = parseFloat(dom.fPrice.value);
-    if (!dom.fPrice.value.trim() || isNaN(price) || price <= 0) {
-      setFieldError(dom.fPrice, dom.errPrice, 'Enter a positive limit price');
-      valid = false;
+  try {
+    const res = await fetch(`${API}/api/klines?symbol=${encodeURIComponent(state.symbol)}&interval=${encodeURIComponent(state.interval)}&limit=70`);
+    if (res.ok) {
+      const data = await res.json();
+      state.chartData = data.candles || [];
+      if (state.chartData.length > 0) {
+        const latest = state.chartData[state.chartData.length - 1];
+        state.marketPrice = latest.close;
+        updateOrderReview();
+      }
+      renderChart();
     } else {
-      clearFieldError(dom.fPrice, dom.errPrice);
+      showChartError(`Real market data unavailable for ${state.symbol}`);
+    }
+  } catch (err) {
+    showChartError(`Network error loading ${state.symbol} candles`);
+  } finally {
+    dom.chartLoader.classList.remove('visible');
+  }
+
+  // 3. Connect to Binance Futures Public WebSocket Kline Stream
+  connectKlineWebSocket();
+}
+
+function showChartError(msg) {
+  const canvas = dom.canvas;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = dom.chartViewport.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, rect.width, rect.height);
+  ctx.fillStyle = '#eb5b3c';
+  ctx.font = '13px Inter, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText(`⚠️ ${msg}`, rect.width / 2, rect.height / 2);
+  updateStreamStatus('error');
+}
+
+function updateStreamStatus(status) {
+  if (status === 'live') {
+    dom.chartStreamDot.style.background = 'var(--green)';
+    dom.chartStreamStatus.textContent = 'LIVE STREAM';
+    dom.chartStreamStatus.style.color = 'var(--green)';
+  } else if (status === 'connecting') {
+    dom.chartStreamDot.style.background = 'var(--amber)';
+    dom.chartStreamStatus.textContent = 'CONNECTING';
+    dom.chartStreamStatus.style.color = 'var(--amber)';
+  } else {
+    dom.chartStreamDot.style.background = 'var(--red)';
+    dom.chartStreamStatus.textContent = 'STREAM OFFLINE';
+    dom.chartStreamStatus.style.color = 'var(--red)';
+  }
+}
+
+function cleanupWebSocket() {
+  if (state.wsReconnectTimer) {
+    clearTimeout(state.wsReconnectTimer);
+    state.wsReconnectTimer = null;
+  }
+  if (state.ws) {
+    try {
+      state.ws.onclose = null;
+      state.ws.onerror = null;
+      state.ws.onmessage = null;
+      state.ws.close();
+    } catch (_) {}
+    state.ws = null;
+  }
+}
+
+function connectKlineWebSocket() {
+  const symLower = state.symbol.toLowerCase();
+  const interval = state.interval;
+  const targetSymbol = state.symbol;
+  const targetInterval = state.interval;
+
+  // Binance Futures Public Combined/Kline Stream (Zero API credentials required)
+  const wsUrl = `wss://fstream.binance.com/ws/${symLower}@kline_${interval}`;
+
+  try {
+    const ws = new WebSocket(wsUrl);
+    state.ws = ws;
+
+    ws.onopen = () => {
+      // Ensure this connection still matches current selected symbol/interval
+      if (state.symbol === targetSymbol && state.interval === targetInterval) {
+        updateStreamStatus('live');
+      }
+    };
+
+    ws.onmessage = (event) => {
+      // Guard against stale streams
+      if (state.symbol !== targetSymbol || state.interval !== targetInterval) {
+        ws.close();
+        return;
+      }
+
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg && msg.e === 'kline' && msg.k) {
+          const k = msg.k;
+          handleLiveKlineUpdate({
+            time:   k.t,
+            open:   parseFloat(k.o),
+            high:   parseFloat(k.h),
+            low:    parseFloat(k.l),
+            close:  parseFloat(k.c),
+            volume: parseFloat(k.v),
+            isClosed: k.x,
+          });
+        }
+      } catch (e) {
+        console.warn('Error parsing live kline frame', e);
+      }
+    };
+
+    ws.onerror = () => {
+      updateStreamStatus('error');
+    };
+
+    ws.onclose = () => {
+      // Automatic reconnection handling if this is still the active symbol
+      if (state.symbol === targetSymbol && state.interval === targetInterval) {
+        updateStreamStatus('connecting');
+        state.wsReconnectTimer = setTimeout(() => {
+          connectKlineWebSocket();
+        }, 3000);
+      }
+    };
+  } catch (err) {
+    console.warn('WebSocket connection init failed', err);
+    updateStreamStatus('error');
+  }
+}
+
+/**
+ * Updates the current candle's open, high, low, close, and volume
+ * without refetching or rebuilding the whole dataset.
+ */
+function handleLiveKlineUpdate(liveCandle) {
+  const candles = state.chartData;
+  if (!candles || candles.length === 0) {
+    state.chartData = [liveCandle];
+  } else {
+    const lastIndex = candles.length - 1;
+    const lastCandle = candles[lastIndex];
+
+    if (lastCandle.time === liveCandle.time) {
+      // Same candle in-progress: update OHLCV in place
+      lastCandle.high = Math.max(lastCandle.high, liveCandle.high);
+      lastCandle.low  = Math.min(lastCandle.low, liveCandle.low);
+      lastCandle.close = liveCandle.close;
+      lastCandle.volume = liveCandle.volume;
+    } else if (liveCandle.time > lastCandle.time) {
+      // New candle interval started: append new candle and maintain window size
+      candles.push(liveCandle);
+      if (candles.length > 80) {
+        candles.shift();
+      }
     }
   }
 
+  // Update live market price
+  state.marketPrice = liveCandle.close;
+  dom.chartPriceCurrent.textContent = formatMoney(state.marketPrice) + ' USDT';
+
+  // Compute live change from the 24h baseline or first candle
+  if (state.chartData.length > 1) {
+    const baseline = state.chartData[0].open;
+    const diff = state.marketPrice - baseline;
+    const pct = (diff / baseline) * 100;
+    updatePriceDisplay(state.marketPrice, diff, pct);
+  }
+
+  updateOrderReview();
+
+  // Fast canvas repaint with updated candle values (no full dataset recreation)
+  renderChart();
+}
+
+// ── 5. Canvas Candlestick Rendering ──────────────────────────────
+function renderChart() {
+  const canvas = dom.canvas;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = dom.chartViewport.getBoundingClientRect();
+
+  // Resize canvas according to display DPI
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+
+  const w = rect.width;
+  const h = rect.height;
+
+  ctx.clearRect(0, 0, w, h);
+
+  const candles = state.chartData;
+  if (!candles || candles.length === 0) {
+    ctx.fillStyle = '#8a94a6';
+    ctx.font = '13px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Loading live candlestick data…', w / 2, h / 2);
+    return;
+  }
+
+  // Margins for axes
+  const margin = { top: 20, right: 75, bottom: 35, left: 10 };
+  const plotW = w - margin.left - margin.right;
+  const plotH = h - margin.top - margin.bottom;
+
+  // Find min/max price for scaling
+  let minP = Infinity;
+  let maxP = -Infinity;
+  let maxVol = 0;
+
+  for (const c of candles) {
+    if (c.low < minP) minP = c.low;
+    if (c.high > maxP) maxP = c.high;
+    if (c.volume > maxVol) maxVol = c.volume;
+  }
+
+  // Pad price range by 5%
+  const pDiff = maxP - minP || 1;
+  minP -= pDiff * 0.05;
+  maxP += pDiff * 0.05;
+
+  const priceToY = p => margin.top + plotH - ((p - minP) / (maxP - minP)) * plotH;
+
+  // 1. Draw subtle horizontal grid lines & price labels (Angel One style)
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = '#f1f5f9';
+  ctx.fillStyle = '#8a94a6';
+  ctx.font = '10.5px JetBrains Mono, monospace';
+  ctx.textAlign = 'left';
+
+  const gridSteps = 5;
+  for (let i = 0; i <= gridSteps; i++) {
+    const p = minP + (i / gridSteps) * (maxP - minP);
+    const y = priceToY(p);
+    ctx.beginPath();
+    ctx.moveTo(margin.left, y);
+    ctx.lineTo(margin.left + plotW, y);
+    ctx.stroke();
+
+    // Price label on right axis
+    ctx.fillText(p.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 2 }), margin.left + plotW + 6, y + 4);
+  }
+
+  // 2. Draw Candlesticks & Volume Bars
+  const n = candles.length;
+  const candleGap = plotW / n;
+  const candleW = Math.max(2, candleGap * 0.72);
+
+  candles.forEach((c, i) => {
+    const x = margin.left + i * candleGap + candleGap / 2;
+    const isBullish = c.close >= c.open;
+    const color = isBullish ? '#00b386' : '#eb5b3c';
+
+    // Volume bar at bottom (subtle 20% height)
+    const volH = maxVol > 0 ? (c.volume / maxVol) * (plotH * 0.22) : 0;
+    const volY = margin.top + plotH - volH;
+    ctx.fillStyle = isBullish ? 'rgba(0, 179, 134, 0.16)' : 'rgba(235, 91, 60, 0.16)';
+    ctx.fillRect(x - candleW / 2, volY, candleW, volH);
+
+    // Candlestick Wick
+    ctx.strokeStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(x, priceToY(c.high));
+    ctx.lineTo(x, priceToY(c.low));
+    ctx.stroke();
+
+    // Candlestick Body
+    const yOpen = priceToY(c.open);
+    const yClose = priceToY(c.close);
+    const bodyTop = Math.min(yOpen, yClose);
+    const bodyH = Math.max(2, Math.abs(yClose - yOpen));
+
+    ctx.fillStyle = color;
+    ctx.fillRect(x - candleW / 2, bodyTop, candleW, bodyH);
+  });
+
+  // 3. Draw Latest Live Price Dashed Line across chart
+  const latestClose = candles[candles.length - 1].close;
+  const latestY = priceToY(latestClose);
+  const isLatestBullish = candles[candles.length - 1].close >= candles[candles.length - 1].open;
+  const lineColor = isLatestBullish ? '#00b386' : '#eb5b3c';
+
+  ctx.setLineDash([4, 4]);
+  ctx.strokeStyle = lineColor;
+  ctx.beginPath();
+  ctx.moveTo(margin.left, latestY);
+  ctx.lineTo(margin.left + plotW, latestY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Latest live price badge pill on axis
+  ctx.fillStyle = lineColor;
+  ctx.fillRect(margin.left + plotW + 2, latestY - 9, margin.right - 4, 18);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '10px JetBrains Mono, monospace';
+  ctx.fillText(latestClose.toFixed(2), margin.left + plotW + 6, latestY + 3.5);
+}
+
+window.addEventListener('resize', () => {
+  if (state.chartData.length > 0) renderChart();
+});
+
+// ── 6. Order Panel Logic ─────────────────────────────────────────
+dom.tabBuy.addEventListener('click', () => setSide('BUY'));
+dom.tabSell.addEventListener('click', () => setSide('SELL'));
+
+function setSide(side) {
+  state.side = side;
+  const isBuy = side === 'BUY';
+  dom.tabBuy.className = 'side-tab' + (isBuy ? ' active-buy' : '');
+  dom.tabSell.className = 'side-tab' + (!isBuy ? ' active-sell' : '');
+
+  dom.btnSubmitOrder.className = 'btn-order-action ' + (isBuy ? 'buy' : 'sell');
+  updateSubmitButton();
+}
+
+dom.selectOrderType.addEventListener('change', () => {
+  state.orderType = dom.selectOrderType.value;
+  dom.revType.textContent = state.orderType;
+  const isLimit = state.orderType === 'LIMIT';
+  dom.groupLimitPrice.classList.toggle('hidden', !isLimit);
+  if (isLimit && !dom.inputLimitPrice.value && state.marketPrice) {
+    dom.inputLimitPrice.value = state.marketPrice.toFixed(2);
+  }
+  updateOrderReview();
+});
+
+dom.btnUseMarketPrice.addEventListener('click', () => {
+  if (state.marketPrice) {
+    dom.inputLimitPrice.value = state.marketPrice.toFixed(2);
+    updateOrderReview();
+  }
+});
+
+[dom.inputQty, dom.inputLimitPrice].forEach(el => {
+  el.addEventListener('input', updateOrderReview);
+});
+
+function updateSubmitButton() {
+  const sym = state.symbol;
+  const action = state.side === 'BUY' ? 'BUY' : 'SELL';
+  dom.btnSubmitOrder.textContent = `${action} ${sym}`;
+}
+
+function updateOrderReview() {
+  const qty = parseFloat(dom.inputQty.value) || 0;
+  let price = state.marketPrice || 0;
+
+  if (state.orderType === 'LIMIT') {
+    const p = parseFloat(dom.inputLimitPrice.value);
+    if (!isNaN(p) && p > 0) price = p;
+  }
+
+  const estVal = qty * price;
+  dom.revEstValue.textContent = `~${formatMoney(estVal)} USDT`;
+  dom.revMargin.textContent   = `~${formatMoney(estVal)} USDT`;
+}
+
+// ── 7. Order Submission & Confirmation Modal ─────────────────────
+dom.btnSubmitOrder.addEventListener('click', () => {
+  hideToast();
+  if (!validateOrderInputs()) return;
+  openConfirmModal();
+});
+
+function validateOrderInputs() {
+  let valid = true;
+  const qty = parseFloat(dom.inputQty.value);
+
+  if (!dom.inputQty.value.trim() || isNaN(qty) || qty <= 0) {
+    dom.inputQty.classList.add('has-error');
+    dom.errQtyMsg.classList.add('visible');
+    valid = false;
+  } else {
+    dom.inputQty.classList.remove('has-error');
+    dom.errQtyMsg.classList.remove('visible');
+  }
+
+  if (state.orderType === 'LIMIT') {
+    const pr = parseFloat(dom.inputLimitPrice.value);
+    if (!dom.inputLimitPrice.value.trim() || isNaN(pr) || pr <= 0) {
+      dom.inputLimitPrice.classList.add('has-error');
+      dom.errPriceMsg.classList.add('visible');
+      valid = false;
+    } else {
+      dom.inputLimitPrice.classList.remove('has-error');
+      dom.errPriceMsg.classList.remove('visible');
+    }
+  }
   return valid;
 }
 
-// ── Show confirmation modal ──────────────────────────────────────
-dom.btnSubmit.addEventListener('click', () => {
-  hideBanner();
-  if (!validateForm()) return;
-  openModal();
-});
+function openConfirmModal() {
+  const qty = parseFloat(dom.inputQty.value);
+  const isLimit = state.orderType === 'LIMIT';
+  const pr = isLimit ? parseFloat(dom.inputLimitPrice.value) : (state.marketPrice || 0);
+  const estVal = qty * pr;
 
-function openModal() {
-  const symbol = dom.fSymbol.value.trim().toUpperCase();
-  const type   = dom.fOrderType.value;
-  const price  = dom.fPrice.value.trim();
+  dom.modalProduct.textContent = state.symbol;
+  dom.modalSide.textContent    = state.side;
+  dom.modalType.textContent    = state.orderType;
+  dom.modalQty.textContent     = String(qty);
+  dom.modalValue.textContent   = `~${formatMoney(estVal)} USDT`;
 
-  dom.mSide.textContent   = state.side;
-  dom.mSide.className     = 'modal-val ' + state.side.toLowerCase();
-  dom.mSymbol.textContent = symbol;
-  dom.mType.textContent   = type;
-  dom.mQty.textContent    = dom.fQty.value.trim();
-  dom.mConfirm.className  = 'btn-confirm ' + state.side.toLowerCase();
-
-  if (type === 'LIMIT' && price) {
-    dom.mPriceRow.classList.remove('hidden');
-    dom.mPrice.textContent = parseFloat(price).toLocaleString('en-US', { minimumFractionDigits: 2 }) + ' USDT';
+  if (isLimit) {
+    dom.modalPriceRow.classList.remove('hidden');
+    dom.modalPrice.textContent = `${formatMoney(pr)} USDT`;
   } else {
-    dom.mPriceRow.classList.add('hidden');
+    dom.modalPriceRow.classList.add('hidden');
   }
 
-  dom.modal.classList.add('visible');
+  dom.modalBtnConfirm.className = 'btn-confirm ' + (state.side === 'BUY' ? 'buy' : 'sell');
+  dom.modalBtnConfirm.disabled = false;
+  dom.modalBtnConfirm.textContent = 'Confirm & Place';
+
+  dom.confirmModal.classList.add('visible');
 }
 
-dom.mCancel.addEventListener('click', closeModal);
-dom.modal.addEventListener('click', e => { if (e.target === dom.modal) closeModal(); });
+dom.modalBtnCancel.addEventListener('click', closeConfirmModal);
+dom.confirmModal.addEventListener('click', e => {
+  if (e.target === dom.confirmModal) closeConfirmModal();
+});
 
-function closeModal() {
-  dom.modal.classList.remove('visible');
-  dom.mConfirm.disabled = false;
-  dom.mConfirm.textContent = 'Place Order';
+function closeConfirmModal() {
+  dom.confirmModal.classList.remove('visible');
 }
 
-// ── Submit order ─────────────────────────────────────────────────
-dom.mConfirm.addEventListener('click', submitOrder);
+dom.modalBtnConfirm.addEventListener('click', executeOrder);
 
-async function submitOrder() {
+async function executeOrder() {
   if (state.submitting) return;
   state.submitting = true;
-  dom.mConfirm.disabled = true;
-  dom.mConfirm.innerHTML = '<span class="spinner"></span> Placing…';
+  dom.modalBtnConfirm.disabled = true;
+  dom.modalBtnConfirm.innerHTML = '<span class="spinner"></span> Placing…';
 
-  const symbol    = dom.fSymbol.value.trim().toUpperCase();
-  const type      = dom.fOrderType.value;
-  const qty       = parseFloat(dom.fQty.value);
-  const priceRaw  = dom.fPrice.value.trim();
-  const price     = type === 'LIMIT' && priceRaw ? parseFloat(priceRaw) : null;
-
+  const isLimit = state.orderType === 'LIMIT';
   const payload = {
-    symbol,
-    side:       state.side,
-    order_type: type,
-    quantity:   qty,
-    price,
+    mode: state.mode,
+    symbol: state.symbol,
+    side: state.side,
+    order_type: state.orderType,
+    quantity: parseFloat(dom.inputQty.value),
+    price: isLimit ? parseFloat(dom.inputLimitPrice.value) : null,
   };
 
-  closeModal();
-  showBanner('loading', '');
+  closeConfirmModal();
+  showToast('loading', 'Submitting order to trading engine…');
 
   try {
-    const res  = await fetch(`${API}/api/order`, {
-      method:  'POST',
+    const res = await fetch(`${API}/api/order`, {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(payload),
+      body: JSON.stringify(payload),
     });
     const data = await res.json();
 
     if (!res.ok) {
-      showBanner('error', data.error || `HTTP ${res.status}`);
+      showToast('error', data.error || 'Order placement failed');
     } else {
       const o = data.order;
-      showBanner('success', o);
+      const fillMsg = `✓ ${o.side} ${o.executedQty || o.quantity} ${o.symbol} filled at ${o.avgPrice || o.price} USDT (ID: ${o.orderId})`;
+      showToast('success', fillMsg);
+      loadAccount();
       loadOrders();
     }
   } catch (err) {
-    showBanner('error', 'Network error — is the server running?');
+    showToast('error', 'Network failure: unable to communicate with backend server.');
   } finally {
     state.submitting = false;
   }
 }
 
-// ── Result banner ────────────────────────────────────────────────
-function hideBanner() {
-  dom.resultBanner.className = 'result-banner';
-  dom.resultBanner.innerHTML = '';
+function showToast(type, msg) {
+  dom.orderResultToast.className = `result-toast visible ${type}`;
+  dom.orderResultToast.innerHTML = (type === 'loading' ? '<span class="spinner"></span> ' : '') + escHtml(msg);
 }
 
-function showBanner(type, payload) {
-  dom.resultBanner.className = 'result-banner visible';
+function hideToast() {
+  dom.orderResultToast.className = 'result-toast';
+  dom.orderResultToast.innerHTML = '';
+}
 
-  if (type === 'loading') {
-    dom.resultBanner.classList.add('loading-banner');
-    dom.resultBanner.innerHTML = '<span class="spinner"></span> Placing order on Binance Testnet…';
+// ── 8. Portfolio & Account Fetching ──────────────────────────────
+async function loadAccount() {
+  if (state.mode === 'testnet') {
+    dom.metricBalance.textContent = 'Binance Testnet';
+    dom.metricEquity.textContent  = '—';
+    dom.metricAvailMargin.textContent = '—';
+    dom.metricUnrealized.textContent  = '—';
+    dom.metricRealized.textContent    = '—';
     return;
   }
 
-  if (type === 'error') {
-    dom.resultBanner.classList.add('error-banner');
-    dom.resultBanner.innerHTML = `<div class="result-title">Order Failed</div>${escHtml(payload)}`;
-    return;
-  }
-
-  // success
-  dom.resultBanner.classList.add('success');
-  const avgPrice = payload.avgPrice || payload.price || '—';
-  dom.resultBanner.innerHTML = `
-    <div class="result-title">✓ Order Placed</div>
-    ${resultRow('Order ID',       payload.orderId       || '—')}
-    ${resultRow('Status',         payload.status        || '—')}
-    ${resultRow('Executed Qty',   payload.executedQty   || '—')}
-    ${resultRow('Avg Price',      avgPrice)}
-    ${resultRow('Client Order ID',payload.clientOrderId || '—')}
-  `;
-}
-
-function resultRow(key, val) {
-  return `<div class="result-row"><span class="result-key">${escHtml(key)}</span><span class="result-val">${escHtml(String(val))}</span></div>`;
-}
-
-function escHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-// ── Orders table ─────────────────────────────────────────────────
-async function loadOrders() {
   try {
-    const res  = await fetch(`${API}/api/orders`);
-    const data = await res.json();
-    renderOrders(data.orders || []);
-  } catch (_) {
-    dom.ordersBody.innerHTML = `<tr><td colspan="8" class="table-empty">Could not load order history.</td></tr>`;
+    const res = await fetch(`${API}/api/paper/account`);
+    if (res.ok) {
+      const data = await res.json();
+      dom.metricBalance.textContent = formatMoney(data.balance) + ' USDT';
+      dom.metricEquity.textContent  = formatMoney(data.equity) + ' USDT';
+      dom.metricAvailMargin.textContent = formatMoney(data.balance) + ' USDT';
+
+      const upnl = Number(data.unrealized_pnl || 0);
+      dom.metricUnrealized.textContent = (upnl >= 0 ? '+' : '') + formatMoney(upnl) + ' USDT';
+      dom.metricUnrealized.className   = 'metric-val ' + (upnl > 0 ? 'green' : upnl < 0 ? 'red' : '');
+
+      const rpnl = Number(data.realized_pnl || 0);
+      dom.metricRealized.textContent = (rpnl >= 0 ? '+' : '') + formatMoney(rpnl) + ' USDT';
+      dom.metricRealized.className   = 'metric-val ' + (rpnl > 0 ? 'green' : rpnl < 0 ? 'red' : '');
+
+      renderPositions(data.positions || []);
+    }
+  } catch (err) {
+    console.warn('Failed to load paper account', err);
   }
 }
 
-function renderOrders(orders) {
-  if (!orders.length) {
-    dom.ordersBody.innerHTML = `<tr><td colspan="8" class="table-empty">No orders yet. Place your first order above.</td></tr>`;
+dom.btnResetPortfolio.addEventListener('click', async () => {
+  if (!confirm('Are you sure you want to reset your virtual balance?')) return;
+  try {
+    const res = await fetch(`${API}/api/paper/reset`, { method: 'POST' });
+    if (res.ok) {
+      loadAccount();
+      loadOrders();
+      showToast('success', 'Virtual account balance reset successfully');
+    }
+  } catch (err) {
+    alert('Failed to reset account');
+  }
+});
+
+// ── 9. Positions & Activity Tabs ─────────────────────────────────
+dom.tabBtnPositions.addEventListener('click', () => switchActivityTab('positions'));
+dom.tabBtnOrders.addEventListener('click',    () => switchActivityTab('orders'));
+dom.tabBtnTrades.addEventListener('click',    () => switchActivityTab('trades'));
+dom.btnRefreshTables.addEventListener('click', () => {
+  loadAccount();
+  loadOrders();
+});
+
+function switchActivityTab(tab) {
+  state.activeTab = tab;
+  dom.tabBtnPositions.className = 'activity-tab' + (tab === 'positions' ? ' active' : '');
+  dom.tabBtnOrders.className    = 'activity-tab' + (tab === 'orders' ? ' active' : '');
+  dom.tabBtnTrades.className    = 'activity-tab' + (tab === 'trades' ? ' active' : '');
+
+  dom.viewPositions.classList.toggle('hidden', tab !== 'positions');
+  dom.viewOrders.classList.toggle('hidden',    tab !== 'orders');
+  dom.viewTrades.classList.toggle('hidden',    tab !== 'trades');
+}
+
+function renderPositions(positions) {
+  dom.countPositions.textContent = String(positions.length);
+
+  if (positions.length === 0) {
+    dom.tbodyPositions.innerHTML = `<tr><td colspan="7" class="empty-state">No open positions. Place an order to build your portfolio.</td></tr>`;
     return;
   }
 
-  dom.ordersBody.innerHTML = orders.map(o => {
-    const time    = new Date(o.timestamp).toLocaleTimeString('en-US', { hour12: false });
-    const sideClass = o.side === 'BUY' ? 'cell-buy' : 'cell-sell';
-    const status  = (o.status || '').toUpperCase();
-    const pillClass = status === 'FILLED' ? 'filled' : status === 'NEW' ? 'new' : status === 'CANCELED' ? 'canceled' : 'other';
-    const avgPrice = o.avgPrice || o.price || '—';
-    const price    = avgPrice !== '—' ? parseFloat(avgPrice).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '—';
+  dom.tbodyPositions.innerHTML = positions.map(p => {
+    const isLong = p.side === 'LONG';
+    const upnl = Number(p.unrealized_pnl || 0);
+    const pnlClass = upnl >= 0 ? 'pnl-positive' : 'pnl-negative';
 
     return `<tr>
-      <td>${escHtml(time)}</td>
-      <td class="cell-symbol">${escHtml(o.symbol || '—')}</td>
-      <td class="${sideClass}">${escHtml(o.side || '—')}</td>
-      <td class="cell-type">${escHtml((o.order_type || o.type || '—').toLowerCase())}</td>
-      <td>${escHtml(String(o.executedQty || o.quantity || '—'))}</td>
-      <td>${escHtml(price)}</td>
-      <td><span class="status-pill ${pillClass}">${escHtml(status || '—')}</span></td>
-      <td>${escHtml(String(o.orderId || '—'))}</td>
+      <td class="td-symbol">${escHtml(p.symbol)}</td>
+      <td><span class="badge-side ${isLong ? 'buy' : 'sell'}">${escHtml(p.side)}</span></td>
+      <td>${escHtml(String(p.size))}</td>
+      <td>${formatMoney(p.entry_price)}</td>
+      <td>${formatMoney(p.mark_price)}</td>
+      <td>${formatMoney(p.notional)} USDT</td>
+      <td class="${pnlClass}">${upnl >= 0 ? '+' : ''}${formatMoney(upnl)} USDT</td>
     </tr>`;
   }).join('');
 }
 
-// ── Connection check ─────────────────────────────────────────────
-async function checkConnection() {
-  dom.statusDot.className  = 'status-dot checking';
-  dom.statusText.textContent = 'Connecting…';
+async function loadOrders() {
   try {
-    const res = await fetch(`${API}/api/orders`, { signal: AbortSignal.timeout(4000) });
+    const res = await fetch(`${API}/api/orders?mode=${encodeURIComponent(state.mode)}`);
     if (res.ok) {
-      dom.statusDot.className   = 'status-dot connected';
-      dom.statusText.textContent = 'testnet.binancefuture.com';
-    } else {
-      throw new Error('non-ok');
+      const data = await res.json();
+      const orders = data.orders || [];
+      renderOrdersAndTrades(orders);
     }
-  } catch (_) {
-    dom.statusDot.className   = 'status-dot error';
-    dom.statusText.textContent = 'Server unreachable';
+  } catch (err) {
+    dom.tbodyOrders.innerHTML = `<tr><td colspan="9" class="empty-state">Could not load orders.</td></tr>`;
   }
 }
 
-// ── Init ─────────────────────────────────────────────────────────
+function renderOrdersAndTrades(orders) {
+  dom.countOrders.textContent = String(orders.length);
+
+  // Render Order History
+  if (orders.length === 0) {
+    dom.tbodyOrders.innerHTML = `<tr><td colspan="9" class="empty-state">No orders placed yet in ${state.mode} mode.</td></tr>`;
+    dom.tbodyTrades.innerHTML = `<tr><td colspan="7" class="empty-state">No filled trades recorded yet.</td></tr>`;
+    return;
+  }
+
+  dom.tbodyOrders.innerHTML = orders.map(o => {
+    const time = o.timestamp ? new Date(o.timestamp).toLocaleTimeString('en-US', { hour12: false }) : '—';
+    const isBuy = o.side === 'BUY';
+    const isSim = o.is_simulated || o.execution_type?.includes('SIMULATED');
+    const status = (o.status || 'FILLED').toUpperCase();
+    const statusClass = status === 'FILLED' ? 'filled' : status === 'NEW' ? 'new' : 'closed';
+
+    return `<tr>
+      <td>${escHtml(time)}</td>
+      <td>${escHtml(String(o.orderId || '—'))}</td>
+      <td class="td-symbol">${escHtml(o.symbol || '—')}</td>
+      <td><span class="badge-side ${isBuy ? 'buy' : 'sell'}">${escHtml(o.side || '—')}</span></td>
+      <td>${escHtml(o.order_type || o.type || 'MARKET')}</td>
+      <td>${escHtml(String(o.executedQty || o.quantity || '—'))}</td>
+      <td>${formatMoney(o.avgPrice || o.price || 0)}</td>
+      <td><span class="badge-status ${statusClass}">${escHtml(status)}</span></td>
+      <td><span class="badge-simulated-tag ${isSim ? '' : 'testnet'}">${isSim ? 'SIMULATED' : 'TESTNET'}</span></td>
+    </tr>`;
+  }).join('');
+
+  // Render Trade History (filled executions)
+  const trades = orders.filter(o => (o.status || 'FILLED').toUpperCase() === 'FILLED');
+  if (trades.length === 0) {
+    dom.tbodyTrades.innerHTML = `<tr><td colspan="7" class="empty-state">No filled trades recorded yet.</td></tr>`;
+    return;
+  }
+
+  dom.tbodyTrades.innerHTML = trades.map(t => {
+    const time = t.timestamp ? new Date(t.timestamp).toLocaleTimeString('en-US', { hour12: false }) : '—';
+    const isBuy = t.side === 'BUY';
+    const isSim = t.is_simulated || t.execution_type?.includes('SIMULATED');
+    const rpnl = Number(t.realized_pnl || 0);
+
+    return `<tr>
+      <td>${escHtml(time)}</td>
+      <td class="td-symbol">${escHtml(t.symbol || '—')}</td>
+      <td><span class="badge-side ${isBuy ? 'buy' : 'sell'}">${escHtml(t.side || '—')}</span></td>
+      <td>${escHtml(String(t.executedQty || t.quantity || '—'))}</td>
+      <td>${formatMoney(t.avgPrice || t.price || 0)} USDT</td>
+      <td class="${rpnl >= 0 ? 'pnl-positive' : 'pnl-negative'}">${rpnl !== 0 ? (rpnl > 0 ? '+' : '') + formatMoney(rpnl) + ' USDT' : '—'}</td>
+      <td><span class="badge-simulated-tag ${isSim ? '' : 'testnet'}">${isSim ? 'SIMULATED' : 'TESTNET'}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Helpers ──────────────────────────────────────────────────────
+function formatMoney(val) {
+  const n = Number(val);
+  if (isNaN(n)) return '0.00';
+  return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+// ── Application Initialization ───────────────────────────────────
 (function init() {
-  setSide('BUY');
-  checkConnection();
+  setMode('paper');
+  fetchMarketInfo();
+  loadHistoricalCandlesAndConnectStream();
+  loadAccount();
   loadOrders();
-  // Refresh order list every 30 s
-  setInterval(loadOrders, 30_000);
+
+  // Periodic polling for 24h market stats & paper account P&L
+  setInterval(() => {
+    fetchMarketInfo();
+    if (state.mode === 'paper') loadAccount();
+  }, 10_000);
 })();

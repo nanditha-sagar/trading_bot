@@ -1,107 +1,173 @@
 /* ================================================================
-   Trading Bot UI — style.css
-   Minimal, professional trading-terminal aesthetic.
-   Dark charcoal · subtle borders · muted text · restrained accents
+   Indian Trading App Aesthetic (Groww & Angel One Inspired)
+   Light theme default · Clean typography · Generous whitespace
+   Subtle grey borders · Crisp green/red indicators · Mobile responsive
    ================================================================ */
 
-/* ── Reset & base ───────────────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
 :root {
-  /* Palette */
-  --bg-base:      #0f1117;
-  --bg-panel:     #161b27;
-  --bg-input:     #1c2333;
-  --bg-hover:     #202840;
-  --border:       #2a3347;
-  --border-focus: #3d4f6e;
+  /* Surface & backgrounds */
+  --bg-page:        #f4f6f8;
+  --bg-card:        #ffffff;
+  --bg-subtle:      #f8fafc;
+  --bg-hover:       #f1f5f9;
+  --bg-input:       #ffffff;
 
-  /* Text */
-  --text-primary:  #e2e8f0;
-  --text-secondary:#8b9ab5;
-  --text-muted:    #4f6080;
-
-  /* Accents */
-  --green:        #22c55e;
-  --green-dim:    #16a34a;
-  --green-bg:     rgba(34,197,94,0.08);
-  --red:          #ef4444;
-  --red-dim:      #dc2626;
-  --red-bg:       rgba(239,68,68,0.08);
-  --amber:        #f59e0b;
-  --amber-bg:     rgba(245,158,11,0.10);
-  --blue:         #3b82f6;
-  --blue-bg:      rgba(59,130,246,0.08);
-
-  /* Radius / shadow */
-  --radius-sm:    4px;
-  --radius-md:    8px;
-  --shadow-sm:    0 1px 3px rgba(0,0,0,0.4);
-  --shadow-panel: 0 4px 16px rgba(0,0,0,0.5);
+  /* Borders */
+  --border-light:   #e2e8f0;
+  --border-subtle:  #edf2f7;
+  --border-focus:   #00b386;
 
   /* Typography */
-  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
-  --font-ui:   'Inter', system-ui, sans-serif;
+  --text-primary:   #19232d;
+  --text-secondary: #535e6a;
+  --text-muted:     #8a94a6;
+
+  /* Indian Fintech Green / Red Accents (Groww & Angel One) */
+  --green:          #00b386;
+  --green-hover:    #009973;
+  --green-bg:       rgba(0, 179, 134, 0.08);
+  --green-border:   rgba(0, 179, 134, 0.25);
+
+  --red:            #eb5b3c;
+  --red-hover:      #d64a2c;
+  --red-bg:         rgba(235, 91, 60, 0.08);
+  --red-border:     rgba(235, 91, 60, 0.25);
+
+  --amber:          #f59e0b;
+  --amber-bg:       rgba(245, 158, 11, 0.08);
+  --amber-border:   rgba(245, 158, 11, 0.3);
+
+  --blue:           #387ed1;
+  --blue-bg:        rgba(56, 126, 209, 0.08);
+
+  /* Radius & Shadows */
+  --radius-xs:      4px;
+  --radius-sm:      6px;
+  --radius-md:      8px;
+  --shadow-card:    0 1px 3px rgba(16, 24, 40, 0.05);
+
+  /* Font Families */
+  --font-main: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Roboto Mono', monospace;
 }
 
 html, body {
   min-height: 100vh;
-  background: var(--bg-base);
+  background-color: var(--bg-page);
   color: var(--text-primary);
-  font-family: var(--font-ui);
+  font-family: var(--font-main);
   font-size: 13px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 
-/* ── Layout ─────────────────────────────────────────────────────── */
-.app-wrapper {
-  max-width: 1000px;
+/* ── App Shell ─────────────────────────────────────────────────── */
+.app-container {
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 0 16px 48px;
+  padding: 0 20px 48px;
 }
 
-/* ── Header ─────────────────────────────────────────────────────── */
-.app-header {
+/* ── Top Navigation (Groww Style Clean Header) ─────────────────── */
+.top-nav {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 14px 0;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 24px;
+  background: transparent;
+  border-bottom: 1px solid var(--border-light);
+  margin-bottom: 20px;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
-.header-left {
+.brand-section {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
-.header-logo {
-  font-size: 15px;
-  font-weight: 600;
+.brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 700;
   color: var(--text-primary);
-  letter-spacing: -0.2px;
+  letter-spacing: -0.3px;
 }
 
-.badge-testnet {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
-  color: var(--amber);
-  background: var(--amber-bg);
-  border: 1px solid rgba(245,158,11,0.3);
+.brand-icon {
+  width: 26px;
+  height: 26px;
+  background: var(--green);
+  color: #ffffff;
   border-radius: var(--radius-sm);
-  padding: 2px 7px;
-}
-
-.header-status {
   display: flex;
   align-items: center;
-  gap: 7px;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.mode-selector {
+  display: flex;
+  background: #e9ecef;
+  padding: 2px;
+  border-radius: var(--radius-sm);
+  gap: 2px;
+}
+
+.mode-btn {
+  border: none;
+  background: transparent;
+  padding: 6px 14px;
   font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font-main);
+  color: var(--text-secondary);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mode-btn:hover {
+  color: var(--text-primary);
+}
+
+.mode-btn.active-paper {
+  background: #ffffff;
+  color: var(--green);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+}
+
+.mode-btn.active-testnet {
+  background: #ffffff;
+  color: var(--amber);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.market-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
   color: var(--text-secondary);
 }
 
@@ -110,425 +176,696 @@ html, body {
   height: 7px;
   border-radius: 50%;
   background: var(--text-muted);
-  flex-shrink: 0;
-  transition: background 0.3s;
 }
+.status-dot.active { background: var(--green); }
+.status-dot.testnet { background: var(--amber); }
+.status-dot.error { background: var(--red); }
 
-.status-dot.connected   { background: var(--green); box-shadow: 0 0 6px var(--green); }
-.status-dot.error       { background: var(--red);   box-shadow: 0 0 6px var(--red); }
-.status-dot.checking    { background: var(--amber);  animation: pulse 1s infinite; }
-
-@keyframes pulse {
-  0%,100% { opacity: 1; } 50% { opacity: 0.3; }
-}
-
-/* ── Main grid ──────────────────────────────────────────────────── */
-.main-grid {
-  display: grid;
-  grid-template-columns: 380px 1fr;
-  gap: 20px;
-  align-items: start;
-}
-
-@media (max-width: 720px) {
-  .main-grid { grid-template-columns: 1fr; }
-}
-
-/* ── Panel ──────────────────────────────────────────────────────── */
-.panel {
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
+/* ── Portfolio Summary (Angel One & Groww Style Stats) ────────── */
+.portfolio-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
-  overflow: hidden;
-  box-shadow: var(--shadow-panel);
-}
-
-.panel-header {
+  padding: 16px 20px;
+  box-shadow: var(--shadow-card);
+  margin-bottom: 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+  gap: 16px;
 }
 
-.panel-title {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  color: var(--text-secondary);
+.portfolio-metrics {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 28px;
 }
 
-.panel-body { padding: 16px; }
-
-/* ── Form ───────────────────────────────────────────────────────── */
-.form-group {
-  margin-bottom: 14px;
+.metric-item {
+  display: flex;
+  flex-direction: column;
 }
 
-.form-label {
-  display: block;
+.metric-label {
   font-size: 11px;
   font-weight: 500;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.6px;
-  margin-bottom: 5px;
-}
-
-.form-control {
-  width: 100%;
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--text-primary);
-  font-family: var(--font-ui);
-  font-size: 13px;
-  padding: 8px 10px;
-  transition: border-color 0.15s;
-  outline: none;
-  -webkit-appearance: none;
-}
-
-.form-control:focus {
-  border-color: var(--border-focus);
-}
-
-.form-control.error-field {
-  border-color: var(--red);
-}
-
-.form-control option {
-  background: var(--bg-panel);
-}
-
-/* Side toggle */
-.side-toggle {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-}
-
-.side-btn {
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  color: var(--text-secondary);
-  font-family: var(--font-ui);
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 8px;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-.side-btn:hover { border-color: var(--border-focus); color: var(--text-primary); }
-
-.side-btn.active-buy  { background: var(--green-bg);  border-color: var(--green-dim); color: var(--green); }
-.side-btn.active-sell { background: var(--red-bg);    border-color: var(--red-dim);   color: var(--red); }
-
-/* Inline validation message */
-.field-error {
-  font-size: 11px;
-  color: var(--red);
-  margin-top: 4px;
-  display: none;
-}
-
-.field-error.visible { display: block; }
-
-/* ── Order summary ──────────────────────────────────────────────── */
-.order-summary {
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 10px 12px;
-  margin-bottom: 14px;
-  display: none;
-}
-
-.order-summary.visible { display: block; }
-
-.summary-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  padding: 2px 0;
-}
-
-.summary-key {
-  font-size: 11px;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  margin-bottom: 2px;
 }
 
-.summary-val {
+.metric-val {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 14px;
+  font-weight: 600;
   color: var(--text-primary);
 }
 
-.summary-val.buy  { color: var(--green); }
-.summary-val.sell { color: var(--red); }
+.metric-val.green { color: var(--green); }
+.metric-val.red   { color: var(--red); }
 
-/* ── Submit button ──────────────────────────────────────────────── */
-.btn-submit {
-  width: 100%;
-  padding: 9px;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-family: var(--font-ui);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s;
-  letter-spacing: 0.3px;
+.portfolio-action {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.btn-submit.buy-mode  { background: var(--green);    color: #fff; }
-.btn-submit.sell-mode { background: var(--red);       color: #fff; }
-.btn-submit.buy-mode:hover  { background: var(--green-dim); }
-.btn-submit.sell-mode:hover { background: var(--red-dim); }
-.btn-submit:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn-secondary {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font-main);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
 
-/* ── Confirmation modal ─────────────────────────────────────────── */
-.modal-overlay {
-  position: fixed;
+.btn-secondary:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: #cbd5e1;
+}
+
+/* ── Main Trading Grid (Chart + Order Panel) ─────────────────── */
+.trading-grid {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 20px;
+  align-items: start;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 960px) {
+  .trading-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Market Chart Card ────────────────────────────────────────── */
+.chart-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.chart-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.symbol-selector-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.symbol-pills {
+  display: flex;
+  gap: 4px;
+}
+
+.symbol-pill {
+  border: 1px solid var(--border-light);
+  background: #ffffff;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+
+.symbol-pill:hover {
+  border-color: #cbd5e1;
+  color: var(--text-primary);
+}
+
+.symbol-pill.active {
+  background: #1e293b;
+  color: #ffffff;
+  border-color: #1e293b;
+}
+
+.symbol-search-input {
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  width: 110px;
+  text-transform: uppercase;
+  outline: none;
+}
+
+.symbol-search-input:focus {
+  border-color: var(--green);
+}
+
+.timeframe-group {
+  display: flex;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+  gap: 2px;
+}
+
+.tf-btn {
+  border: none;
+  background: transparent;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.tf-btn.active {
+  background: #ffffff;
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+}
+
+/* Chart Price Ticker Bar */
+.chart-price-bar {
+  padding: 12px 18px;
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+  background: #ffffff;
+}
+
+.current-price {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.price-change {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.price-change.up   { color: var(--green); }
+.price-change.down { color: var(--red); }
+
+.market-stat {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.market-stat strong {
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+/* Canvas container */
+.chart-viewport {
+  position: relative;
+  width: 100%;
+  height: 380px;
+  background: #ffffff;
+}
+
+#candlestick-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.chart-loader {
+  position: absolute;
   inset: 0;
-  background: rgba(0,0,0,0.65);
+  background: rgba(255,255,255,0.85);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  font-size: 13px;
+  color: var(--text-secondary);
+  gap: 8px;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s;
 }
 
-.modal-overlay.visible { opacity: 1; pointer-events: all; }
+.chart-loader.visible {
+  opacity: 1;
+  pointer-events: all;
+}
 
-.modal {
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
+/* ── Order Panel (Angel One Style Quick Execution) ───────────── */
+.order-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-panel);
-  width: 340px;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+}
+
+.order-panel-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.panel-heading {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.badge-simulated-tag {
+  font-size: 10px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--green-bg);
+  color: var(--green);
+  border: 1px solid var(--green-border);
+}
+
+.badge-simulated-tag.testnet {
+  background: var(--amber-bg);
+  color: var(--amber);
+  border-color: var(--amber-border);
+}
+
+.order-panel-body {
+  padding: 18px;
+}
+
+/* Buy / Sell Tabs */
+.order-side-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: var(--bg-subtle);
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  margin-bottom: 16px;
+  gap: 4px;
+}
+
+.side-tab {
+  border: none;
+  background: transparent;
+  padding: 9px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: var(--font-main);
+  color: var(--text-secondary);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: center;
+}
+
+.side-tab.active-buy {
+  background: var(--green);
+  color: #ffffff;
+}
+
+.side-tab.active-sell {
+  background: var(--red);
+  color: #ffffff;
+}
+
+/* Form controls */
+.field-group {
+  margin-bottom: 14px;
+}
+
+.field-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 5px;
+}
+
+.field-input, .field-select {
+  width: 100%;
+  height: 38px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-sm);
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  font-family: var(--font-main);
+  outline: none;
+  transition: border-color 0.12s;
+}
+
+.field-input:focus, .field-select:focus {
+  border-color: var(--border-focus);
+}
+
+.field-input.has-error {
+  border-color: var(--red);
+}
+
+.field-error-msg {
+  font-size: 11px;
+  color: var(--red);
+  margin-top: 4px;
+  display: none;
+}
+.field-error-msg.visible { display: block; }
+
+/* Order review box */
+.order-review-box {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.review-line {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.review-val {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.btn-order-action {
+  width: 100%;
+  height: 42px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-main);
+  font-size: 14px;
+  font-weight: 700;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.btn-order-action.buy {
+  background: var(--green);
+}
+.btn-order-action.buy:hover {
+  background: var(--green-hover);
+}
+
+.btn-order-action.sell {
+  background: var(--red);
+}
+.btn-order-action.sell:hover {
+  background: var(--red-hover);
+}
+
+.btn-order-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Positions & Activity Tabs (Groww / Angel One style) ─────── */
+.activity-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.activity-tabs-header {
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.activity-tab-buttons {
+  display: flex;
+  gap: 20px;
+}
+
+.activity-tab {
+  border: none;
+  background: transparent;
+  padding: 14px 2px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font-main);
+  color: var(--text-muted);
+  cursor: pointer;
+  position: relative;
+  transition: color 0.15s;
+}
+
+.activity-tab:hover {
+  color: var(--text-primary);
+}
+
+.activity-tab.active {
+  color: var(--green);
+}
+
+.activity-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--green);
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.trading-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.trading-table th {
+  padding: 10px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border-light);
+  background: var(--bg-subtle);
+  white-space: nowrap;
+}
+
+.trading-table td {
+  padding: 12px 16px;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+  white-space: nowrap;
+  font-family: var(--font-mono);
+}
+
+.trading-table tr:hover {
+  background: var(--bg-hover);
+}
+
+.td-symbol {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: var(--font-main);
+}
+
+.badge-side {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  font-family: var(--font-main);
+}
+.badge-side.buy  { background: var(--green-bg); color: var(--green); }
+.badge-side.sell { background: var(--red-bg);   color: var(--red); }
+
+.badge-status {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: var(--font-main);
+}
+.badge-status.filled { background: var(--green-bg); color: var(--green); }
+.badge-status.new    { background: var(--blue-bg);  color: var(--blue); }
+.badge-status.closed { background: #f1f5f9;         color: var(--text-muted); }
+
+.pnl-positive { color: var(--green); font-weight: 600; }
+.pnl-negative { color: var(--red);   font-weight: 600; }
+
+.empty-state {
+  text-align: center;
+  padding: 36px 16px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* ── Result Toast Banner ─────────────────────────────────────── */
+.result-toast {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  line-height: 1.5;
+  display: none;
+}
+.result-toast.visible { display: block; }
+.result-toast.success { background: var(--green-bg); border: 1px solid var(--green-border); color: var(--green); }
+.result-toast.error   { background: var(--red-bg);   border: 1px solid var(--red-border);   color: var(--red); }
+.result-toast.loading { background: var(--blue-bg);  border: 1px solid rgba(56, 126, 209, 0.2); color: var(--blue); }
+
+/* ── Confirmation Modal ───────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+
+.modal-overlay.visible {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.modal-box {
+  background: #ffffff;
+  border-radius: var(--radius-md);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+  width: 380px;
   max-width: calc(100vw - 32px);
   padding: 20px;
 }
 
-.modal-title {
-  font-size: 13px;
-  font-weight: 600;
+.modal-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 14px;
+}
+
+.modal-heading {
+  font-size: 15px;
+  font-weight: 700;
   color: var(--text-primary);
 }
 
-.modal-detail {
-  background: var(--bg-input);
+.modal-body {
+  background: var(--bg-subtle);
   border-radius: var(--radius-sm);
-  padding: 10px 12px;
-  margin-bottom: 16px;
+  padding: 12px 14px;
+  margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .modal-row {
   display: flex;
   justify-content: space-between;
-  padding: 3px 0;
-}
-
-.modal-key {
-  font-size: 11px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.modal-val {
-  font-family: var(--font-mono);
   font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.modal-row strong {
+  font-family: var(--font-mono);
   color: var(--text-primary);
 }
 
-.modal-val.buy  { color: var(--green); }
-.modal-val.sell { color: var(--red); }
-
-.modal-actions {
+.modal-footer {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 10px;
 }
 
 .btn-cancel {
-  background: var(--bg-input);
-  border: 1px solid var(--border);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-light);
   border-radius: var(--radius-sm);
   color: var(--text-secondary);
-  font-family: var(--font-ui);
-  font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   padding: 8px;
   cursor: pointer;
-  transition: all 0.15s;
 }
-
-.btn-cancel:hover { border-color: var(--border-focus); color: var(--text-primary); }
 
 .btn-confirm {
   border: none;
   border-radius: var(--radius-sm);
-  font-family: var(--font-ui);
-  font-size: 13px;
-  font-weight: 600;
+  color: #ffffff;
+  font-weight: 700;
   padding: 8px;
   cursor: pointer;
-  transition: background 0.15s;
-  color: #fff;
 }
 
 .btn-confirm.buy  { background: var(--green); }
 .btn-confirm.sell { background: var(--red); }
-.btn-confirm.buy:hover  { background: var(--green-dim); }
-.btn-confirm.sell:hover { background: var(--red-dim); }
-.btn-confirm:disabled { opacity: 0.45; cursor: not-allowed; }
 
-/* ── Toast / result banner ──────────────────────────────────────── */
-.result-banner {
-  border-radius: var(--radius-sm);
-  padding: 10px 12px;
-  margin-bottom: 14px;
-  display: none;
-  font-size: 12px;
-  line-height: 1.6;
-}
-
-.result-banner.visible { display: block; }
-
-.result-banner.success {
-  background: var(--green-bg);
-  border: 1px solid rgba(34,197,94,0.25);
-  color: var(--green);
-}
-
-.result-banner.error-banner {
-  background: var(--red-bg);
-  border: 1px solid rgba(239,68,68,0.25);
-  color: var(--red);
-}
-
-.result-banner.loading-banner {
-  background: var(--blue-bg);
-  border: 1px solid rgba(59,130,246,0.2);
-  color: #60a5fa;
-}
-
-.result-title { font-weight: 600; margin-bottom: 4px; }
-
-.result-row {
-  display: flex;
-  gap: 6px;
-}
-
-.result-key {
-  color: var(--text-muted);
-  min-width: 90px;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.4px;
-  padding-top: 1px;
-}
-
-.result-val {
-  font-family: var(--font-mono);
-  font-size: 11.5px;
-  color: var(--text-primary);
-  word-break: break-all;
-}
-
-/* ── Orders table ───────────────────────────────────────────────── */
-.orders-panel { grid-column: 1 / -1; }
-
-.table-wrap { overflow-x: auto; }
-
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-thead th {
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.7px;
-  color: var(--text-muted);
-  padding: 8px 12px;
-  text-align: left;
-  border-bottom: 1px solid var(--border);
-  white-space: nowrap;
-}
-
-tbody tr {
-  border-bottom: 1px solid rgba(42,51,71,0.6);
-  transition: background 0.1s;
-}
-
-tbody tr:last-child { border-bottom: none; }
-tbody tr:hover      { background: var(--bg-hover); }
-
-tbody td {
-  padding: 9px 12px;
-  font-size: 12px;
-  color: var(--text-secondary);
-  white-space: nowrap;
-  font-family: var(--font-mono);
-}
-
-tbody td.cell-symbol { color: var(--text-primary); font-weight: 600; font-family: var(--font-ui); }
-tbody td.cell-buy    { color: var(--green); font-weight: 600; }
-tbody td.cell-sell   { color: var(--red);   font-weight: 600; }
-tbody td.cell-type   { color: var(--text-muted); font-family: var(--font-ui); text-transform: lowercase; }
-
-.status-pill {
-  display: inline-block;
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 2px 7px;
-  border-radius: 99px;
-  font-family: var(--font-ui);
-}
-
-.status-pill.filled     { background: var(--green-bg); color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
-.status-pill.new        { background: var(--blue-bg);  color: #60a5fa;      border: 1px solid rgba(59,130,246,0.2); }
-.status-pill.canceled   { background: var(--red-bg);   color: var(--red);   border: 1px solid rgba(239,68,68,0.2); }
-.status-pill.other      { background: rgba(255,255,255,0.04); color: var(--text-muted); border: 1px solid var(--border); }
-
-/* Empty / error table states */
-.table-empty {
-  padding: 28px 16px;
-  text-align: center;
-  color: var(--text-muted);
-  font-size: 12px;
-}
-
-/* ── Spinner ────────────────────────────────────────────────────── */
+/* ── Utility ──────────────────────────────────────────────────── */
+.hidden { display: none !important; }
 .spinner {
   display: inline-block;
   width: 12px;
   height: 12px;
-  border: 2px solid rgba(255,255,255,0.15);
+  border: 2px solid rgba(0,0,0,0.1);
   border-top-color: currentColor;
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
   vertical-align: middle;
   margin-right: 6px;
 }
-
 @keyframes spin { to { transform: rotate(360deg); } }
-
-/* ── Utilities ──────────────────────────────────────────────────── */
-.hidden { display: none !important; }

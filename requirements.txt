@@ -3,3 +3,4 @@ python-dotenv
 binance-futures-connector
 flask
 flask-cors
+pytest

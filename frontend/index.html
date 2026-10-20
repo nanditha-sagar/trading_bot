@@ -3,182 +3,302 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="Binance Futures Testnet Trading Bot — place MARKET and LIMIT futures orders on the Binance testnet." />
-  <title>Testnet Trading Bot</title>
+  <meta name="description" content="Clean Indian-app style Futures Paper Trading platform with real-time candlestick charts and zero risk simulation." />
+  <title>Futures Trading — Paper &amp; Testnet</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
-<div class="app-wrapper">
+<div class="app-container">
 
-  <!-- ── Header ─────────────────────────────────────────────────── -->
-  <header class="app-header">
-    <div class="header-left">
-      <span class="header-logo">Trading Bot</span>
-      <span class="badge-testnet">Testnet</span>
+  <!-- ── 1. Top Navigation (Groww Style) ───────────────────────── -->
+  <header class="top-nav">
+    <div class="brand-section">
+      <div class="brand-logo">
+        <div class="brand-icon">F</div>
+        <span>Futures Trading</span>
+      </div>
+
+      <!-- Mode Switcher -->
+      <div class="mode-selector" role="tablist" aria-label="Trading Mode">
+        <button id="btn-mode-paper" class="mode-btn active-paper" type="button" role="tab" aria-selected="true" title="Simulated paper trading with 10,000 USDT">
+          <span>📝</span> Paper Trading
+        </button>
+        <button id="btn-mode-testnet" class="mode-btn" type="button" role="tab" aria-selected="false" title="Binance Futures Testnet (requires API keys)">
+          <span>📡</span> Testnet
+        </button>
+      </div>
     </div>
-    <div class="header-status">
-      <div id="status-dot" class="status-dot"></div>
-      <span id="status-text">Connecting…</span>
+
+    <div class="nav-actions">
+      <div class="market-badge">
+        <div id="nav-status-dot" class="status-dot active"></div>
+        <span id="nav-status-text">Market Live (Paper Engine)</span>
+      </div>
     </div>
   </header>
 
-  <!-- ── Main grid ──────────────────────────────────────────────── -->
-  <main class="main-grid">
-
-    <!-- ── Order form ─────────────────────────────────────────── -->
-    <section class="panel" aria-label="New order">
-      <div class="panel-header">
-        <span class="panel-title">New Order</span>
+  <!-- ── 2. Portfolio Summary Bar (Groww & Angel One Style) ─────── -->
+  <section class="portfolio-card" aria-label="Portfolio Summary">
+    <div class="portfolio-metrics">
+      <div class="metric-item">
+        <span class="metric-label">Virtual Balance</span>
+        <span id="metric-balance" class="metric-val">10,000.00 USDT</span>
       </div>
-      <div class="panel-body">
-
-        <!-- Side toggle -->
-        <div class="form-group">
-          <span class="form-label">Side</span>
-          <div class="side-toggle">
-            <button id="btn-buy"  class="side-btn active-buy"  type="button" aria-pressed="true">Buy / Long</button>
-            <button id="btn-sell" class="side-btn"              type="button" aria-pressed="false">Sell / Short</button>
-          </div>
-        </div>
-
-        <!-- Symbol -->
-        <div class="form-group">
-          <label class="form-label" for="f-symbol">Symbol</label>
-          <input id="f-symbol" class="form-control" type="text"
-                 value="BTCUSDT" placeholder="e.g. BTCUSDT"
-                 autocomplete="off" spellcheck="false"
-                 aria-describedby="err-symbol" />
-          <div id="err-symbol" class="field-error" role="alert"></div>
-        </div>
-
-        <!-- Order type -->
-        <div class="form-group">
-          <label class="form-label" for="f-order-type">Order Type</label>
-          <select id="f-order-type" class="form-control">
-            <option value="MARKET">Market — execute at best price</option>
-            <option value="LIMIT">Limit — execute at specified price</option>
-          </select>
-        </div>
-
-        <!-- Quantity -->
-        <div class="form-group">
-          <label class="form-label" for="f-qty">Quantity</label>
-          <input id="f-qty" class="form-control" type="number"
-                 value="0.002" min="0" step="any"
-                 placeholder="0.002"
-                 aria-describedby="err-qty" />
-          <div id="err-qty" class="field-error" role="alert"></div>
-        </div>
-
-        <!-- Limit price (shown only for LIMIT) -->
-        <div id="f-price-group" class="form-group hidden">
-          <label class="form-label" for="f-price">Limit Price (USDT)</label>
-          <input id="f-price" class="form-control" type="number"
-                 min="0" step="any" placeholder="e.g. 95000"
-                 aria-describedby="err-price" />
-          <div id="err-price" class="field-error" role="alert"></div>
-        </div>
-
-        <!-- Order summary -->
-        <div id="order-summary" class="order-summary" aria-live="polite">
-          <div class="summary-row">
-            <span class="summary-key">Side</span>
-            <span id="sum-side" class="summary-val buy">BUY</span>
-          </div>
-          <div class="summary-row">
-            <span class="summary-key">Symbol</span>
-            <span id="sum-symbol" class="summary-val">—</span>
-          </div>
-          <div class="summary-row">
-            <span class="summary-key">Type</span>
-            <span id="sum-type" class="summary-val">—</span>
-          </div>
-          <div class="summary-row">
-            <span class="summary-key">Qty</span>
-            <span id="sum-qty" class="summary-val">—</span>
-          </div>
-          <div id="sum-price-row" class="summary-row hidden">
-            <span class="summary-key">Price</span>
-            <span id="sum-price" class="summary-val">—</span>
-          </div>
-        </div>
-
-        <!-- Result banner -->
-        <div id="result-banner" class="result-banner" role="status" aria-live="polite"></div>
-
-        <!-- Submit -->
-        <button id="btn-submit" class="btn-submit buy-mode" type="button">
-          Buy / Long
-        </button>
-
-      </div><!-- /panel-body -->
-    </section><!-- /order form -->
-
-    <!-- ── Orders table ───────────────────────────────────────── -->
-    <section class="panel orders-panel" aria-label="Recent orders">
-      <div class="panel-header">
-        <span class="panel-title">Recent Orders</span>
+      <div class="metric-item">
+        <span class="metric-label">Total Equity</span>
+        <span id="metric-equity" class="metric-val">10,000.00 USDT</span>
       </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Time</th>
-              <th>Symbol</th>
-              <th>Side</th>
-              <th>Type</th>
-              <th>Exec Qty</th>
-              <th>Avg Price</th>
-              <th>Status</th>
-              <th>Order ID</th>
-            </tr>
-          </thead>
-          <tbody id="orders-body">
-            <tr>
-              <td colspan="8" class="table-empty">No orders yet. Place your first order.</td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="metric-item">
+        <span class="metric-label">Available Margin</span>
+        <span id="metric-avail-margin" class="metric-val">10,000.00 USDT</span>
+      </div>
+      <div class="metric-item">
+        <span class="metric-label">Unrealized P&amp;L</span>
+        <span id="metric-unrealized-pnl" class="metric-val">0.00 USDT</span>
+      </div>
+      <div class="metric-item">
+        <span class="metric-label">Realized P&amp;L</span>
+        <span id="metric-realized-pnl" class="metric-val">0.00 USDT</span>
+      </div>
+    </div>
+    <div class="portfolio-action">
+      <button id="btn-reset-portfolio" class="btn-secondary" type="button" title="Reset paper balance to 10,000 USDT">
+        Reset Account
+      </button>
+    </div>
+  </section>
+
+  <!-- ── 3. Main Trading Grid (Chart + Order Panel) ─────────────── -->
+  <main class="trading-grid">
+
+    <!-- ── Left: Market Candlestick Chart ─────────────────────── -->
+    <section class="chart-card" aria-label="Interactive Chart">
+      <div class="chart-header">
+        <div class="symbol-selector-wrap">
+          <!-- Quick symbol pills -->
+          <div class="symbol-pills">
+            <button class="symbol-pill active" data-symbol="BTCUSDT">BTC</button>
+            <button class="symbol-pill" data-symbol="ETHUSDT">ETH</button>
+            <button class="symbol-pill" data-symbol="SOLUSDT">SOL</button>
+          </div>
+          <!-- Symbol search -->
+          <input id="input-symbol-search" class="symbol-search-input" type="text" value="BTCUSDT" placeholder="SYMBOL" spellcheck="false" autocomplete="off" />
+        </div>
+
+        <!-- Timeframe selector -->
+        <div class="timeframe-group">
+          <button class="tf-btn" data-interval="1m">1m</button>
+          <button class="tf-btn" data-interval="5m">5m</button>
+          <button class="tf-btn active" data-interval="15m">15m</button>
+          <button class="tf-btn" data-interval="1h">1h</button>
+          <button class="tf-btn" data-interval="4h">4h</button>
+        </div>
+      </div>
+
+      <!-- Price Ticker Header -->
+      <div class="chart-price-bar">
+        <div id="chart-price-current" class="current-price">— USDT</div>
+        <div id="chart-price-change" class="price-change up">+0.00 (0.00%)</div>
+        <div class="market-stat">24h High: <strong id="chart-24h-high">—</strong></div>
+        <div class="market-stat">24h Low: <strong id="chart-24h-low">—</strong></div>
+        <div class="market-stat">24h Vol: <strong id="chart-24h-vol">—</strong></div>
+        <div style="margin-left:auto; display:flex; align-items:center; gap:6px;">
+          <span id="chart-stream-dot" class="status-dot" style="background:#8a94a6;"></span>
+          <span id="chart-stream-status" style="font-size:11px; font-weight:600; color:var(--text-muted);">CONNECTING</span>
+        </div>
+      </div>
+
+      <!-- Chart Canvas Viewport -->
+      <div class="chart-viewport" id="chart-viewport">
+        <canvas id="candlestick-canvas"></canvas>
+        <div id="chart-loader" class="chart-loader">
+          <span class="spinner"></span> Loading real-time Binance chart…
+        </div>
       </div>
     </section>
 
-  </main><!-- /main-grid -->
+    <!-- ── Right: Angel One Style Order Panel ─────────────────── -->
+    <section class="order-panel" aria-label="Place Order">
+      <div class="order-panel-header">
+        <span class="panel-heading">Order Window</span>
+        <span id="badge-order-sim" class="badge-simulated-tag">SIMULATED</span>
+      </div>
 
-</div><!-- /app-wrapper -->
+      <div class="order-panel-body">
+        <!-- BUY / SELL Tab Selector -->
+        <div class="order-side-toggle">
+          <button id="tab-buy" class="side-tab active-buy" type="button">BUY / LONG</button>
+          <button id="tab-sell" class="side-tab" type="button">SELL / SHORT</button>
+        </div>
 
-<!-- ── Confirmation modal ────────────────────────────────────────── -->
-<div id="confirm-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-  <div class="modal">
-    <div id="modal-title" class="modal-title">Confirm Order</div>
-    <div class="modal-detail">
-      <div class="modal-row">
-        <span class="modal-key">Side</span>
-        <span id="m-side" class="modal-val">—</span>
+        <!-- Product / Type Selection -->
+        <div class="field-group">
+          <label class="field-label" for="select-order-type">Order Type</label>
+          <select id="select-order-type" class="field-select">
+            <option value="MARKET">Market (Instant Fill at Best Price)</option>
+            <option value="LIMIT">Limit (Execute at Specified Price)</option>
+          </select>
+        </div>
+
+        <!-- Quantity Input -->
+        <div class="field-group">
+          <div class="field-label">
+            <span>Quantity</span>
+            <span id="label-qty-step" style="font-size:10px; color:var(--text-muted);">Step: 0.001</span>
+          </div>
+          <input id="input-qty" class="field-input" type="number" step="any" min="0" value="0.002" placeholder="0.002" />
+          <div id="err-qty-msg" class="field-error-msg">Please enter a valid positive quantity.</div>
+        </div>
+
+        <!-- Limit Price Input (Shown only for LIMIT orders) -->
+        <div id="group-limit-price" class="field-group hidden">
+          <div class="field-label">
+            <span>Limit Price (USDT)</span>
+            <span id="btn-use-market-price" style="font-size:10px; color:var(--green); cursor:pointer;">Use Current</span>
+          </div>
+          <input id="input-limit-price" class="field-input" type="number" step="any" min="0" placeholder="e.g. 81500" />
+          <div id="err-price-msg" class="field-error-msg">Please enter a valid limit price.</div>
+        </div>
+
+        <!-- Order Estimated Value & Breakdown -->
+        <div class="order-review-box">
+          <div class="review-line">
+            <span>Contract</span>
+            <span id="rev-symbol" class="review-val">BTCUSDT</span>
+          </div>
+          <div class="review-line">
+            <span>Order Type</span>
+            <span id="rev-type" class="review-val">MARKET</span>
+          </div>
+          <div class="review-line">
+            <span>Est. Order Value</span>
+            <span id="rev-est-value" class="review-val">~162.90 USDT</span>
+          </div>
+          <div class="review-line">
+            <span>Margin Required</span>
+            <span id="rev-margin" class="review-val">~162.90 USDT</span>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button id="btn-submit-order" class="btn-order-action buy" type="button">
+          BUY BTCUSDT
+        </button>
+
+        <!-- Result / Alert Toast -->
+        <div id="order-result-toast" class="result-toast"></div>
       </div>
-      <div class="modal-row">
-        <span class="modal-key">Symbol</span>
-        <span id="m-symbol" class="modal-val">—</span>
+    </section>
+
+  </main>
+
+  <!-- ── 4. Positions & Orders Tabs (Groww & Angel One Style) ──── -->
+  <section class="activity-card" aria-label="Positions and Activity">
+    <div class="activity-tabs-header">
+      <div class="activity-tab-buttons" role="tablist">
+        <button id="tab-btn-positions" class="activity-tab active" type="button" role="tab" aria-selected="true">
+          Open Positions (<span id="count-positions">0</span>)
+        </button>
+        <button id="tab-btn-orders" class="activity-tab" type="button" role="tab" aria-selected="false">
+          Order History (<span id="count-orders">0</span>)
+        </button>
+        <button id="tab-btn-trades" class="activity-tab" type="button" role="tab" aria-selected="false">
+          Trade History
+        </button>
       </div>
-      <div class="modal-row">
-        <span class="modal-key">Type</span>
-        <span id="m-type" class="modal-val">—</span>
-      </div>
-      <div class="modal-row">
-        <span class="modal-key">Quantity</span>
-        <span id="m-qty" class="modal-val">—</span>
-      </div>
-      <div id="m-price-row" class="modal-row hidden">
-        <span class="modal-key">Limit Price</span>
-        <span id="m-price" class="modal-val">—</span>
-      </div>
+      <button id="btn-refresh-tables" class="btn-secondary" type="button" style="padding:4px 10px; font-size:11px;">
+        Refresh
+      </button>
     </div>
-    <div class="modal-actions">
-      <button id="m-cancel"  class="btn-cancel"  type="button">Cancel</button>
-      <button id="m-confirm" class="btn-confirm buy" type="button">Place Order</button>
+
+    <!-- Tab 1: Open Positions -->
+    <div id="view-positions" class="table-responsive">
+      <table class="trading-table">
+        <thead>
+          <tr>
+            <th>Symbol</th>
+            <th>Side</th>
+            <th>Size</th>
+            <th>Entry Price</th>
+            <th>Mark Price</th>
+            <th>Notional Value</th>
+            <th>Unrealized P&amp;L</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-positions">
+          <tr><td colspan="7" class="empty-state">No open positions. Place an order to build your portfolio.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Tab 2: Order History -->
+    <div id="view-orders" class="table-responsive hidden">
+      <table class="trading-table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Order ID</th>
+            <th>Symbol</th>
+            <th>Side</th>
+            <th>Type</th>
+            <th>Qty</th>
+            <th>Price</th>
+            <th>Status</th>
+            <th>Execution</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-orders">
+          <tr><td colspan="9" class="empty-state">No orders yet.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Tab 3: Trade History -->
+    <div id="view-trades" class="table-responsive hidden">
+      <table class="trading-table">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Symbol</th>
+            <th>Side</th>
+            <th>Executed Qty</th>
+            <th>Avg Fill Price</th>
+            <th>Realized P&amp;L</th>
+            <th>Execution</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-trades">
+          <tr><td colspan="7" class="empty-state">No filled trades recorded yet.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</div>
+
+<!-- ── 5. Confirmation Step (Modal) ─────────────────────────── -->
+<div id="confirm-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+  <div class="modal-box">
+    <div class="modal-header-row">
+      <span id="modal-title" class="modal-heading">Confirm Order</span>
+      <span id="modal-mode-badge" class="badge-simulated-tag">SIMULATED</span>
+    </div>
+    <div class="modal-body">
+      <div class="modal-row"><span>Product</span><strong id="modal-product">BTCUSDT</strong></div>
+      <div class="modal-row"><span>Side</span><strong id="modal-side">BUY</strong></div>
+      <div class="modal-row"><span>Order Type</span><strong id="modal-type">MARKET</strong></div>
+      <div class="modal-row"><span>Quantity</span><strong id="modal-qty">0.002</strong></div>
+      <div id="modal-price-row" class="modal-row hidden"><span>Limit Price</span><strong id="modal-price">—</strong></div>
+      <div class="modal-row"><span>Est. Value</span><strong id="modal-value">—</strong></div>
+      <div class="modal-row"><span>Execution</span><span id="modal-exec-type" style="color:var(--green); font-weight:600;">Paper Simulation (Zero Risk)</span></div>
+    </div>
+    <div class="modal-footer">
+      <button id="modal-btn-cancel" class="btn-cancel" type="button">Cancel</button>
+      <button id="modal-btn-confirm" class="btn-confirm buy" type="button">Confirm &amp; Place</button>
     </div>
   </div>
 </div>
